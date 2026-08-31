@@ -5,15 +5,19 @@ description: Use when I say "symphony", "conduct", "orchestrate this", "delegate
 
 # Symphony — multi-model orchestration, one conductor
 
-Claude (Fable-class) is the **conductor**: it decomposes the work, keeps the hardest and
+The primary agent — Claude in Claude Code today, whatever conducts tomorrow — is the **conductor**: it decomposes the work, keeps the hardest and
 most consequential parts for itself, delegates the rest to the right model at the right
 effort, verifies everything on the host, and lands the results. Delegates never commit,
 push, sign, or touch release state — the conductor owns every side effect.
 
-Symphony extends fable5-methodology §D (orchestration). All fable5 rules apply unchanged:
-spec before delegation, evidence beats assertion at every handoff, explicit file ownership
-for parallel work, verdicts within ~20 tool calls / ~8 minutes, and no success claims
-without a host-run check. Where this file and fable5 conflict, fable5 wins.
+Symphony ships its own discipline: **the Score** (`score/` in this repo — OPERATING.md,
+INTEGRITY.md, PLAYBOOK.md, TRAPS.md, 26 drills, per-stack notes, optional enforcement
+hooks). The Score's rules apply to every seat: spec before delegation, evidence beats
+assertion at every handoff, explicit file ownership for parallel work, bounded verdicts,
+and no success claims without a host-run check. Where this file and the Score conflict,
+the Score wins. Read `score/OPERATING.md` once per session on serious work; load a drill
+(`score/drills/<name>.md`) when its situation arrives; pattern-match `score/TRAPS.md`
+before debugging anything twice.
 
 ## The orchestra
 
@@ -34,8 +38,8 @@ on that task class, and record the promotion in this file.
   "found", not "built": what exists, what changed upstream, what do these 40 repos share,
   does this claim survive a cold read.
 - The conductor's strength is judgment — so it spends its tokens on decomposition, the
-  genuinely hard parts, and on *not trusting anyone*, including itself (fable5 reviewer
-  chain still applies to conductor-written code).
+  genuinely hard parts, and on *not trusting anyone*, including itself (the Score's review
+  chain applies to conductor-written code too).
 
 ## Effort routing
 
@@ -140,20 +144,20 @@ spec, or advance its own hard part. Never idle-poll; land results as notificatio
 ## Failure discipline
 
 - A failed lane gets **one** resume with a precise fix list; after the second failure the
-  conductor takes the work over directly (fable5 3-strike rule).
+  conductor takes the work over directly (the Score’s 3-strike rule).
 - A dead premise kills the lane, not the goal: record it, re-scope, redispatch.
 - Escalate tiers on evidence ("medium produced shallow tests twice for this class"), and
   record the escalation so routing improves.
 - Runaway/hung lane: check the process table before assuming progress; a silent lane with
   ~0 CPU is blocked, not thinking.
 
-## fable5 integration map
+## The Score in one breath
 
-| fable5 rule | Symphony realization |
-|---|---|
-| §D spec-before-delegation | The spec contract above |
-| §D builder→qa→reviewer chain | Builder lane → conductor host verification → scout cold review (Standard+ work) |
-| §D file ownership | Writable-scope line in every spec; disjoint by construction |
-| §D verdict ≤20 calls/8 min | Lane prompts demand a report, never a plan; NOT RUN states the exact remaining command |
-| Integrity: no fabricated output | Verification contract #2 |
-| Prime 12: gate destructive/outward | Conductor-only landings; delegates never push |
+The methodology is part of the framework, not a prerequisite: `score/OPERATING.md` holds
+the ranked Prime Directives and Integrity Rules every seat obeys; `score/TRAPS.md` is the
+field-proven failure catalog (pipelines that lie, premises that die, sandboxes that fake
+failures, digests that hash two ways) — consult it before any second debugging attempt;
+`score/drills/` are the deep procedures, loaded on demand; `score/hooks/` optionally
+enforces the mechanical subset (risk guard, delivery gate, per-edit verify) in Claude Code
+or Cursor. The builder→verify→cold-review chain for Standard+ work realizes the Score's
+review discipline: builder lane → conductor host verification → scout cold review.
