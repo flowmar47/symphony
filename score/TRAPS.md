@@ -62,6 +62,10 @@ Add new entries with the same shape: **trap → symptom → rule**.
 - **Delegate reports are advisory.** Pasted test output proves nothing. *Rule:* the
   conductor re-runs proof commands and reads the full diff plus `git status` — scope
   creep is a finding even when the code is good.
+- **A delegate's write scope is its launch directory.** Sandboxed builders can only write
+  under the cwd they started in; a multi-repo spec dispatched from one repo makes the rest
+  read-only and the lane "completes" having deferred them. *Rule:* one lane per repo, or
+  launch from a common root and let the spec do the constraining.
 - **A silent lane at ~0 CPU is blocked, not thinking.** *Rule:* check the process table
   and its open fds before waiting on it; find what it's actually waiting for.
 

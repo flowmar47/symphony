@@ -102,7 +102,11 @@ the whole briefing:
 
 - **GOAL** — one paragraph of what done looks like, in user-visible terms.
 - **Writable scope** — exact repos/dirs; everything else is read-only. Parallel lanes get
-  disjoint scopes — no two seats edit the same file, ever.
+  disjoint scopes — no two seats edit the same file, ever. The scope must equal what the
+  dispatch can actually write: a builder's write sandbox is rooted at its launch directory,
+  so a spec naming four repos dispatched from one repo's cwd silently strands three —
+  dispatch multi-repo work as per-repo lanes (or from a common root, accepting the wider
+  blast radius the spec then has to constrain).
 - **Constraints** — what must not change (versions, policy values, deps, public claims).
 - **Non-goals** — the tempting adjacent work it must not do.
 - **Proof** — the exact commands whose verbatim output the report must include.
