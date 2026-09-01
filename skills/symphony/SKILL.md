@@ -25,11 +25,21 @@ before debugging anything twice.
 |---|---|---|---|
 | **Conductor** | Claude (this session) | — | Decomposition, architecture, novel/hard debugging, anything irreversible (commits, pushes, releases, store mutations, secrets), all verification, all landings, final integration |
 | **Builder** | Codex CLI (`gpt-5.6-sol`) | workspace-write | Implementation lanes against a frozen spec: features, tests, refactors, mechanical sweeps |
-| **Scout** | cursor-agent (`cursor-grok-4.6-xhigh-fast`) | ask / plan (read-only) | Fast breadth: web + recency research, cross-repo retrieval sweeps, doc digestion, cold second-opinion reviews, large-log triage |
+| **Scout** | Codex CLI read-only (`-s read-only`, web search via the account's search MCP) — or cursor-agent (`cursor-grok-4.6-xhigh-fast`) when its 60 s PONG preflight prints | ask / plan (read-only) | Fast breadth: web + recency research, cross-repo retrieval sweeps, doc digestion, cold second-opinion reviews, large-log triage |
 
 The scout starts **read-only by policy**, not by accident: `ask` and `plan` modes cannot
 edit. Promote the scout to write lanes only after it wins a bake-off against the builder
 on that task class, and record the promotion in this file.
+
+**Seat health is checked, never assumed.** On 2026-09-01 cursor-agent print mode was flaky
+on this bench: it hangs on an inherited non-TTY stdin, and even with `</dev/null` some runs
+exit 0 or 1 with no output while others answer correctly. A read-only Codex lane answered the
+same web-research probe correctly every time, with cited URLs. The dispatcher therefore pings
+cursor-agent (60 s, ask mode, "PONG"), uses it only if it answers, falls back to Codex
+read-only otherwise — and if a passed ping is followed by an empty real run, it re-runs that
+lane on Codex once. An empty answer from the final engine fails the lane instead of passing
+as "done". Force a seat with `SYMPHONY_SCOUT_ENGINE=cursor|codex`; tune Codex with
+`SYMPHONY_SCOUT_EFFORT=low|medium|high`. Always redirect cursor-agent's stdin from `/dev/null`.
 
 ### Why this seating
 - The builder's strength is sustained, spec-faithful implementation with tests — give it
@@ -74,18 +84,28 @@ EOF
 # Reviews: -s read-only on first call; resume forces -c sandbox_mode="read-only".
 ```
 
-### Scout — cursor-agent
+### Scout — Codex read-only (default) or cursor-agent (when its ping passes)
 ```bash
-# Retrieval / repo Q&A (no web):
+# Preflight the cursor seat first — a silent exit 0 means DEAD, not slow:
+timeout 60 cursor-agent -p --trust --output-format text \
+  --model cursor-grok-4.6-xhigh-fast "Reply with exactly the single word PONG."
+
+# If it printed PONG — retrieval / repo Q&A (no web):
 cursor-agent -p --trust --mode ask \
   --model cursor-grok-4.6-xhigh-fast --output-format text "<question>"
-
-# Web + recency research (read-only for files; web tools enabled):
+# …and web + recency research (read-only for files; web tools enabled):
 cursor-agent -p --trust --force --mode plan \
   --model cursor-grok-4.6-xhigh-fast --output-format text "<research brief>"
 
-# Run from the directory the question is about; --trust is per-directory.
-# Cheaper breadth when volume is huge: cursor-grok-4.6-low-fast.
+# If it printed nothing — read-only Codex with web search (prompt via stdin, never a bare arg):
+codex exec --skip-git-repo-check -s read-only -c approval_policy="never" \
+  -c model_reasoning_effort=medium --json -o /tmp/scout-<lane>.txt - <<'EOF' 2>/dev/null >/dev/null
+READ-ONLY SCOUT LANE. Do not create, edit, or delete any file. Use web search and fetch
+freely; cite the URL for every load-bearing claim; label anything not observed as INFERRED.
+<research brief>
+EOF
+# Final answer lands in the -o file; the JSONL on stdout is the event log.
+# Run from the directory the question is about. Empty output = failed lane, re-dispatch or take over.
 ```
 
 Or use the bundled dispatcher, which wraps both and keeps a run ledger:
@@ -127,7 +147,8 @@ Delegate output is **advisory until the conductor re-proves it on the host**:
    before acting on it. No citation → treat as unverified hypothesis.
 5. Landing (branch, commit, PR, merge) is conductor-only, after verification, with
    problem-first commit messages and the attribution trailer naming every seat that played
-   (e.g. `Opus 5 via Claude Code (Codex gpt-5.6-sol built, Grok 4.6 scouted, Claude verified)`).
+   (e.g. `Opus 5 via Claude Code (Codex gpt-5.6-sol built, Codex read-only scouted, Claude verified)`;
+   name the engine that actually answered — the ledger records it per lane).
 
 ## Choreography patterns
 
