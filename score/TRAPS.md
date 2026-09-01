@@ -68,6 +68,15 @@ Add new entries with the same shape: **trap → symptom → rule**.
   launch from a common root and let the spec do the constraining.
 - **A silent lane at ~0 CPU is blocked, not thinking.** *Rule:* check the process table
   and its open fds before waiting on it; find what it's actually waiting for.
+- **A silent exit is a failed lane, not a slow one.** cursor-agent print mode returned exit 0
+  and a 1-byte answer for a 6 KB research brief — and for a one-word "PONG" — when its stdin
+  was an inherited non-TTY pipe; with `</dev/null` it answered some runs and returned nothing
+  (exit 0 or 1) on others. Ten minutes were spent waiting on "progress" that never existed.
+  *Rule:* preflight every delegate seat with a one-word ping before dispatching real work;
+  redirect stdin from `/dev/null` for any CLI that might read it; treat empty output as
+  failure in the dispatcher (never `state=done`); keep a proven fallback engine (read-only
+  Codex with web search answered the same probe correctly every time) and record which
+  engine actually played in the ledger and the attribution trailer.
 
 ## Tools and environments
 

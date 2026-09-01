@@ -57,20 +57,62 @@ EOF
     ;;
   scout)
     MODE="${1:?mode: ask|plan}"; PROMPT="${2:?prompt or @file}"; DIR="${3:?dir}"; LANE="${4:?lane name}"
-    case "$MODE" in
-      ask)  FLAGS=(--mode ask) ;;
-      plan) FLAGS=(--mode plan --force) ;;   # plan+force enables web tools, still no edits
-      *) echo "bad mode: $MODE" >&2; exit 2 ;;
-    esac
+    case "$MODE" in ask|plan) ;; *) echo "bad mode: $MODE" >&2; exit 2 ;; esac
     [ "${PROMPT#@}" != "$PROMPT" ] && PROMPT="$(cat "${PROMPT#@}")"
     OUT="$SYMPHONY_OUT/$LANE.txt"
-    ledger seat=scout lane="$LANE" mode="$MODE" dir="$DIR" state=start
-    ( cd "$DIR" && cursor-agent -p --trust "${FLAGS[@]}" \
-        --model "${SYMPHONY_SCOUT_MODEL:-cursor-grok-4.6-xhigh-fast}" \
-        --output-format text "$PROMPT" ) > "$OUT" 2>&1 \
-      || { ledger seat=scout lane="$LANE" state=fail exit=$?; echo "scout failed — $OUT" >&2; exit 1; }
-    ledger seat=scout lane="$LANE" state=done mode="$MODE" out="$OUT"
-    echo "scout lane '$LANE' done — answer: $OUT"
+    CURSOR_MODEL="${SYMPHONY_SCOUT_MODEL:-cursor-grok-4.6-xhigh-fast}"
+    # Engine: auto (default) pings cursor-agent for 60 s and falls back to read-only Codex;
+    # cursor / codex force one seat. cursor-agent print mode has exited 0 with EMPTY output
+    # on this bench (2026-09-01) — a silent success is a dead seat, so the ping decides.
+    ENGINE="${SYMPHONY_SCOUT_ENGINE:-auto}"
+    if [ "$ENGINE" = auto ]; then
+      # cursor-agent print mode is flaky on this bench: it hangs on an inherited non-TTY stdin
+      # and, even with </dev/null, sometimes exits 0/1 with no output. A 60 s ask-mode ping
+      # decides; || true keeps a killed or empty ping from aborting under set -e/pipefail.
+      PING=$( (cd "$DIR" && timeout 60 cursor-agent -p --trust --mode ask --output-format text \
+                 --model "$CURSOR_MODEL" "Reply with exactly the single word PONG." \
+                 </dev/null 2>/dev/null || true) | tr -d '[:space:][:cntrl:]' || true)
+      case "$PING" in *PONG*) ENGINE=cursor ;; *) ENGINE=codex ;; esac
+    fi
+    ledger seat=scout lane="$LANE" mode="$MODE" engine="$ENGINE" dir="$DIR" state=start
+    run_codex_scout() {
+      # Read-only Codex sandbox; web search comes from the account's search MCP servers.
+      # ask = repo/knowledge only, plan = web allowed with citations. Never edits.
+      WEB_RULE="Do not use web search or fetch; answer from the repository and your own knowledge only."
+      [ "$MODE" = plan ] && WEB_RULE="Use web search and fetch freely; cite the URL for every load-bearing claim."
+      BRIEF="$OUT.brief"
+      { printf 'READ-ONLY SCOUT LANE. Do not create, edit, or delete any file. %s\n' "$WEB_RULE"
+        printf 'Answer the brief below directly and completely; label anything not directly observed as INFERRED.\n\n'
+        printf '%s\n' "$PROMPT"; } > "$BRIEF"
+      ( cd "$DIR" && codex exec --skip-git-repo-check -s read-only \
+          -c approval_policy="never" \
+          -c model_reasoning_effort="${SYMPHONY_SCOUT_EFFORT:-medium}" \
+          --json -o "$OUT" - < "$BRIEF" ) > "$OUT.jsonl" 2>"$OUT.err" || true
+    }
+    case "$ENGINE" in
+      cursor)
+        case "$MODE" in ask) FLAGS=(--mode ask) ;; plan) FLAGS=(--mode plan --force) ;; esac
+        ( cd "$DIR" && cursor-agent -p --trust "${FLAGS[@]}" --model "$CURSOR_MODEL" \
+            --output-format text "$PROMPT" </dev/null ) > "$OUT" 2>"$OUT.err" || true
+        if [ "$(tr -d '[:space:][:cntrl:]' < "$OUT" | wc -c)" -eq 0 ]; then
+          # The ping passed but the real run came back empty: fall through to Codex once.
+          ledger seat=scout lane="$LANE" engine=cursor state=empty-output fallback=codex
+          ENGINE=codex-after-cursor-empty
+          run_codex_scout
+        fi
+        ;;
+      codex)
+        run_codex_scout
+        ;;
+      *) echo "bad SYMPHONY_SCOUT_ENGINE: $ENGINE (auto|cursor|codex)" >&2; exit 2 ;;
+    esac
+    if [ ! -s "$OUT" ] || [ "$(tr -d '[:space:][:cntrl:]' < "$OUT" | wc -c)" -eq 0 ]; then
+      ledger seat=scout lane="$LANE" engine="$ENGINE" state=fail reason=empty-output out="$OUT"
+      echo "scout lane '$LANE' FAILED: $ENGINE returned empty output (a silent exit is a failed lane) — $OUT" >&2
+      exit 1
+    fi
+    ledger seat=scout lane="$LANE" state=done mode="$MODE" engine="$ENGINE" out="$OUT"
+    echo "scout lane '$LANE' done ($ENGINE) — answer: $OUT"
     echo "CONDUCTOR: spot-check one load-bearing claim against its source before acting."
     ;;
   *) echo "unknown seat: $SEAT (builder|scout)" >&2; exit 2 ;;
