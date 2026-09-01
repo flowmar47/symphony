@@ -7,12 +7,10 @@ for itself, and delegates the rest —
 
 - **Builder** — [Codex CLI](https://github.com/openai/codex) (`gpt-5.6-sol`) implements
   frozen specs at three effort tiers (`medium` / `high` / `max`).
-- **Scout** — read-only breadth: live web + recency research, cross-repo retrieval, doc
-  digestion, cold second-opinion reviews. The dispatcher pings
-  [cursor-agent](https://cursor.com/cli) (`cursor-grok-4.6-xhigh-fast`) for 60 s and uses
-  it only if it answers; otherwise it runs Codex CLI in `-s read-only` with the account's
-  web-search MCP. An empty answer from either engine fails the lane (a silent exit 0 is a
-  dead seat, not a slow one).
+- **Scout** — Codex CLI in `-s read-only` with the account's web-search MCP: live web +
+  recency research, cross-repo retrieval, doc digestion, large-log triage. An empty answer
+  fails the lane (a silent exit is a failed lane, not a slow one). cursor-agent held this
+  seat until 2026-09-01 and was retired for unreliable print-mode output.
 - **Conductor** — Claude verifies every lane on the host, owns every side effect
   (commits, PRs, releases), and plays the parts nobody else should touch.
 
@@ -43,10 +41,7 @@ git clone https://github.com/flowmar47/symphony && cd symphony && ./install.sh
 
 Prerequisites, verified at their own homes (Symphony configures neither):
 - `codex` ≥ 0.130, authenticated (`codex login`)
-- `cursor-agent` (`curl https://cursor.com/install -fsS | bash`), authenticated — optional;
-  the scout falls back to read-only `codex` when cursor-agent's print mode returns nothing
-  (flaky on 2026-09-01 with cursor-agent 2026.08.31: hangs on inherited stdin, intermittently
-  empty even with `</dev/null`). Force a seat with `SYMPHONY_SCOUT_ENGINE=cursor|codex`.
+- a web-search MCP server configured for `codex` (the scout's `plan` mode relies on it)
 - Claude Code with skills enabled
 
 Then say **"symphony"** (or "orchestrate this") in Claude Code and hand it something big.
@@ -58,9 +53,9 @@ Then say **"symphony"** (or "orchestrate this") in Claude Code and hand it somet
 | Novel / multi-constraint / unfamiliar | Builder `max` — or the conductor keeps it |
 | Behavioral features with tests, audits | Builder `high` |
 | Mechanical sweeps, plumbing, renames | Builder `medium` |
-| Web + recency research | Scout `plan` (+web; Codex read-only unless cursor-agent pings) |
-| Repo/portfolio retrieval, doc digestion | Scout `ask` (no web) |
-| Cold review of a diff or plan | Scout `plan` (read-only) |
+| Web + recency research | Scout `plan` (Codex read-only, web search on) |
+| Repo/portfolio retrieval, doc digestion | Scout `ask` (Codex read-only, no web) |
+| Cold review of a diff or plan | Claude subagent (a different model from the builder) |
 | Signing, store state, deletion, money, publishing | **Conductor only** |
 
 ## Choreography

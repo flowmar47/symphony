@@ -6,8 +6,8 @@
 #
 # builder: runs Codex CLI headless (workspace-write, approvals off) against a frozen
 #          spec; report lands in $SYMPHONY_OUT/<lane>.txt, thread id in the ledger.
-# scout:   runs cursor-agent read-only (ask = repo Q&A, plan = +web research) with
-#          cursor-grok-4.6-xhigh-fast; answer lands in $SYMPHONY_OUT/<lane>.txt.
+# scout:   runs Codex CLI read-only (ask = repo Q&A, plan = +web research via the account's
+#          search MCP); answer lands in $SYMPHONY_OUT/<lane>.txt. Empty output fails the lane.
 #
 # Every run appends one JSON line to $SYMPHONY_LEDGER (default ~/.symphony/ledger.jsonl):
 # start/end time, seat, tier/mode, dir, spec/prompt ref, exit code, output path, thread id.
@@ -60,51 +60,24 @@ EOF
     case "$MODE" in ask|plan) ;; *) echo "bad mode: $MODE" >&2; exit 2 ;; esac
     [ "${PROMPT#@}" != "$PROMPT" ] && PROMPT="$(cat "${PROMPT#@}")"
     OUT="$SYMPHONY_OUT/$LANE.txt"
-    CURSOR_MODEL="${SYMPHONY_SCOUT_MODEL:-cursor-grok-4.6-xhigh-fast}"
-    # Engine: auto (default) pings cursor-agent for 60 s and falls back to read-only Codex;
-    # cursor / codex force one seat. cursor-agent print mode has exited 0 with EMPTY output
-    # on this bench (2026-09-01) — a silent success is a dead seat, so the ping decides.
-    ENGINE="${SYMPHONY_SCOUT_ENGINE:-auto}"
-    if [ "$ENGINE" = auto ]; then
-      # cursor-agent print mode is flaky on this bench: it hangs on an inherited non-TTY stdin
-      # and, even with </dev/null, sometimes exits 0/1 with no output. A 60 s ask-mode ping
-      # decides; || true keeps a killed or empty ping from aborting under set -e/pipefail.
-      PING=$( (cd "$DIR" && timeout 60 cursor-agent -p --trust --mode ask --output-format text \
-                 --model "$CURSOR_MODEL" "Reply with exactly the single word PONG." \
-                 </dev/null 2>/dev/null || true) | tr -d '[:space:][:cntrl:]' || true)
-      case "$PING" in *PONG*) ENGINE=cursor ;; *) ENGINE=codex ;; esac
-    fi
+    # Scout engine: read-only Codex (default). ask = repo/knowledge only; plan = web search
+    # allowed with citations. Never edits. The brief goes in on stdin, never as a bare argument.
+    ENGINE="${SYMPHONY_SCOUT_ENGINE:-codex}"
+    WEB_RULE="Do not use web search or fetch; answer from the repository and your own knowledge only."
+    [ "$MODE" = plan ] && WEB_RULE="Use web search and fetch freely; cite the URL for every load-bearing claim."
+    BRIEF="$OUT.brief"
+    { printf 'READ-ONLY SCOUT LANE. Do not create, edit, or delete any file. %s\n' "$WEB_RULE"
+      printf 'Answer the brief below directly and completely; label anything not directly observed as INFERRED.\n\n'
+      printf '%s\n' "$PROMPT"; } > "$BRIEF"
     ledger seat=scout lane="$LANE" mode="$MODE" engine="$ENGINE" dir="$DIR" state=start
-    run_codex_scout() {
-      # Read-only Codex sandbox; web search comes from the account's search MCP servers.
-      # ask = repo/knowledge only, plan = web allowed with citations. Never edits.
-      WEB_RULE="Do not use web search or fetch; answer from the repository and your own knowledge only."
-      [ "$MODE" = plan ] && WEB_RULE="Use web search and fetch freely; cite the URL for every load-bearing claim."
-      BRIEF="$OUT.brief"
-      { printf 'READ-ONLY SCOUT LANE. Do not create, edit, or delete any file. %s\n' "$WEB_RULE"
-        printf 'Answer the brief below directly and completely; label anything not directly observed as INFERRED.\n\n'
-        printf '%s\n' "$PROMPT"; } > "$BRIEF"
-      ( cd "$DIR" && codex exec --skip-git-repo-check -s read-only \
-          -c approval_policy="never" \
-          -c model_reasoning_effort="${SYMPHONY_SCOUT_EFFORT:-medium}" \
-          --json -o "$OUT" - < "$BRIEF" ) > "$OUT.jsonl" 2>"$OUT.err" || true
-    }
     case "$ENGINE" in
-      cursor)
-        case "$MODE" in ask) FLAGS=(--mode ask) ;; plan) FLAGS=(--mode plan --force) ;; esac
-        ( cd "$DIR" && cursor-agent -p --trust "${FLAGS[@]}" --model "$CURSOR_MODEL" \
-            --output-format text "$PROMPT" </dev/null ) > "$OUT" 2>"$OUT.err" || true
-        if [ "$(tr -d '[:space:][:cntrl:]' < "$OUT" | wc -c)" -eq 0 ]; then
-          # The ping passed but the real run came back empty: fall through to Codex once.
-          ledger seat=scout lane="$LANE" engine=cursor state=empty-output fallback=codex
-          ENGINE=codex-after-cursor-empty
-          run_codex_scout
-        fi
-        ;;
       codex)
-        run_codex_scout
+        ( cd "$DIR" && codex exec --skip-git-repo-check -s read-only \
+            -c approval_policy="never" \
+            -c model_reasoning_effort="${SYMPHONY_SCOUT_EFFORT:-medium}" \
+            --json -o "$OUT" - < "$BRIEF" ) > "$OUT.jsonl" 2>"$OUT.err" || true
         ;;
-      *) echo "bad SYMPHONY_SCOUT_ENGINE: $ENGINE (auto|cursor|codex)" >&2; exit 2 ;;
+      *) echo "bad SYMPHONY_SCOUT_ENGINE: $ENGINE (codex)" >&2; exit 2 ;;
     esac
     if [ ! -s "$OUT" ] || [ "$(tr -d '[:space:][:cntrl:]' < "$OUT" | wc -c)" -eq 0 ]; then
       ledger seat=scout lane="$LANE" engine="$ENGINE" state=fail reason=empty-output out="$OUT"
