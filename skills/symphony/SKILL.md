@@ -1,6 +1,6 @@
 ---
 name: symphony
-description: Use when I say "symphony", "conduct", "orchestrate this", "delegate this across models", or when a task is big enough to split across Codex CLI and cursor-agent while Claude keeps the hardest parts. Multi-model orchestration — Claude conducts, Codex builds, Grok scouts.
+description: Use when I say "symphony", "conduct", "orchestrate this", "delegate this across models", or when a task is big enough to split across Codex CLI lanes while Claude keeps the hardest parts. Multi-model orchestration — Claude conducts, Codex builds (workspace-write) and scouts (read-only with web search).
 ---
 
 # Symphony — multi-model orchestration, one conductor
@@ -25,21 +25,20 @@ before debugging anything twice.
 |---|---|---|---|
 | **Conductor** | Claude (this session) | — | Decomposition, architecture, novel/hard debugging, anything irreversible (commits, pushes, releases, store mutations, secrets), all verification, all landings, final integration |
 | **Builder** | Codex CLI (`gpt-5.6-sol`) | workspace-write | Implementation lanes against a frozen spec: features, tests, refactors, mechanical sweeps |
-| **Scout** | Codex CLI read-only (`-s read-only`, web search via the account's search MCP) — or cursor-agent (`cursor-grok-4.6-xhigh-fast`) when its 60 s PONG preflight prints | ask / plan (read-only) | Fast breadth: web + recency research, cross-repo retrieval sweeps, doc digestion, cold second-opinion reviews, large-log triage |
+| **Scout** | Codex CLI read-only (`-s read-only`; web search via the account's search MCP; `SYMPHONY_SCOUT_EFFORT=low|medium|high`) | ask / plan (read-only) | Fast breadth: web + recency research, cross-repo retrieval sweeps, doc digestion, cold second-opinion reviews, large-log triage |
 
-The scout starts **read-only by policy**, not by accident: `ask` and `plan` modes cannot
-edit. Promote the scout to write lanes only after it wins a bake-off against the builder
-on that task class, and record the promotion in this file.
+The scout starts **read-only by policy**, not by accident: the sandbox cannot edit. Promote
+the scout to write lanes only after it wins a bake-off against the builder on that task
+class, and record the promotion in this file.
 
-**Seat health is checked, never assumed.** On 2026-09-01 cursor-agent print mode was flaky
-on this bench: it hangs on an inherited non-TTY stdin, and even with `</dev/null` some runs
-exit 0 or 1 with no output while others answer correctly. A read-only Codex lane answered the
-same web-research probe correctly every time, with cited URLs. The dispatcher therefore pings
-cursor-agent (60 s, ask mode, "PONG"), uses it only if it answers, falls back to Codex
-read-only otherwise — and if a passed ping is followed by an empty real run, it re-runs that
-lane on Codex once. An empty answer from the final engine fails the lane instead of passing
-as "done". Force a seat with `SYMPHONY_SCOUT_ENGINE=cursor|codex`; tune Codex with
-`SYMPHONY_SCOUT_EFFORT=low|medium|high`. Always redirect cursor-agent's stdin from `/dev/null`.
+**Seat health is checked, never assumed.** cursor-agent held this seat until 2026-09-01, when
+its print mode proved unreliable on this bench (hangs on inherited stdin; intermittently empty
+output even with `</dev/null`; still failing after `cursor-agent update`), while read-only
+Codex answered every web-research probe correctly with cited URLs. The seat was retired rather
+than kept behind a preflight. The dispatcher fails a scout lane on empty output instead of
+recording it as done. Because builder and scout now share one vendor, a cold second-opinion
+review of builder output should come from the conductor's own model (a Claude subagent), not
+from another Codex lane.
 
 ### Why this seating
 - The builder's strength is sustained, spec-faithful implementation with tests — give it
@@ -63,7 +62,7 @@ failure, never preemptively.
 | Mechanical: shortcuts, config plumbing, renames, scaffolds-by-example | Builder | `medium` |
 | Web/recency research, "what is the current…" | Scout | plan+force |
 | Repo/portfolio retrieval, "which repos have…", doc digestion | Scout | ask |
-| Cold second-opinion review of a diff or plan | Scout | plan (read-only) |
+| Cold second-opinion review of a diff or plan | Claude subagent (a different model from the builder) | read-only |
 | Anything touching signing, store state, money, deletion, or public surfaces | **Conductor only** | — |
 
 ## Invocation mechanics (verified on this bench)
@@ -84,26 +83,18 @@ EOF
 # Reviews: -s read-only on first call; resume forces -c sandbox_mode="read-only".
 ```
 
-### Scout — Codex read-only (default) or cursor-agent (when its ping passes)
+### Scout — Codex read-only
 ```bash
-# Preflight the cursor seat first — a silent exit 0 means DEAD, not slow:
-timeout 60 cursor-agent -p --trust --output-format text \
-  --model cursor-grok-4.6-xhigh-fast "Reply with exactly the single word PONG."
-
-# If it printed PONG — retrieval / repo Q&A (no web):
-cursor-agent -p --trust --mode ask \
-  --model cursor-grok-4.6-xhigh-fast --output-format text "<question>"
-# …and web + recency research (read-only for files; web tools enabled):
-cursor-agent -p --trust --force --mode plan \
-  --model cursor-grok-4.6-xhigh-fast --output-format text "<research brief>"
-
-# If it printed nothing — read-only Codex with web search (prompt via stdin, never a bare arg):
+# Web + recency research (plan): read-only sandbox, web search allowed, prompt via stdin,
+# never a bare argument (codex exec blocks on a non-TTY without EOF).
 codex exec --skip-git-repo-check -s read-only -c approval_policy="never" \
   -c model_reasoning_effort=medium --json -o /tmp/scout-<lane>.txt - <<'EOF' 2>/dev/null >/dev/null
 READ-ONLY SCOUT LANE. Do not create, edit, or delete any file. Use web search and fetch
 freely; cite the URL for every load-bearing claim; label anything not observed as INFERRED.
 <research brief>
 EOF
+# Repo retrieval / doc digestion (ask): same command with the rule
+# "Do not use web search or fetch; answer from the repository and your own knowledge only."
 # Final answer lands in the -o file; the JSONL on stdout is the event log.
 # Run from the directory the question is about. Empty output = failed lane, re-dispatch or take over.
 ```
@@ -158,8 +149,9 @@ Delegate output is **advisory until the conductor re-proves it on the host**:
   resources, ordered risk). Proven shape for multi-repo sweeps.
 - **Trio** — scout researches → conductor writes spec from findings → builder implements.
   Use when the spec depends on facts you don't have (upstream APIs, current versions).
-- **Counterpoint** — builder implements while scout cold-reviews the *previous* lane's
-  diff, or independently audits the same claims. Never on the same files concurrently.
+- **Counterpoint** — builder implements while a Claude subagent cold-reviews the *previous*
+  lane's diff, or the scout independently re-verifies the same public claims. Never on the
+  same files concurrently.
 - **Tutti** — parallel builder lanes with disjoint repo ownership + a scout sweep.
   Reserve for breadth (portfolio passes); state file ownership in every spec.
 
@@ -185,4 +177,5 @@ failures, digests that hash two ways) — consult it before any second debugging
 `score/drills/` are the deep procedures, loaded on demand; `score/hooks/` optionally
 enforces the mechanical subset (risk guard, delivery gate, per-edit verify) in Claude Code
 or Cursor. The builder→verify→cold-review chain for Standard+ work realizes the Score's
-review discipline: builder lane → conductor host verification → scout cold review.
+review discipline: builder lane → conductor host verification → cold review by a Claude
+subagent (the scout re-verifies public claims; it does not review its own vendor's code).
