@@ -83,6 +83,17 @@ Add new entries with the same shape: **trap → symptom → rule**.
 - **Nested heredocs collide.** A heredoc whose *content* contains the outer delimiter
   terminates early and parses garbage. *Rule:* unique delimiters, or write files with a
   proper file-writing tool instead of shell quoting.
+- **"Read-only" inspection commands that write.** `plutil -extract <key> json <file>`
+  without `-o -` REPLACES the file with the extracted value; one inventory loop over eight
+  app bundles left every Info.plist reading `[1,2]`. *Rule:* before looping an unfamiliar
+  flag over real artifacts, run it once on a copy and diff; prefer explicit output flags.
+- **Help flags after a subcommand may execute it.** `tool capture --help` ran a full capture
+  against the cwd's config. *Rule:* ask for help at the top level (`tool --help`) or read
+  the docs; never probe a side-effectful subcommand with `--help` in a live directory.
+- **Ambient device state leaks into captures.** A simulator launches the app-under-test
+  with a "◀ PreviousApp" breadcrumb when another app was frontmost, and it survives into
+  every screenshot. *Rule:* return the device to a known baseline (terminate apps, reset
+  status bar) before any capture run, and check the first artifact before running the rest.
 
 ## Claims and delivery
 
