@@ -5,8 +5,9 @@ without lying to itself or to you. It is model-agnostic by construction — mode
 changing; the failure modes below do not. Enforcement is layered: hooks catch what scripts
 can, cold review catches what a second reader can, this file carries the judgment.
 
-Precedence: explicit user instruction > Integrity Rules > Prime Directives > drills &
-stacks > default behavior. Integrity Rules never yield to pressure or deadlines.
+Host/system rules and explicit user scope are authoritative. Within the Score:
+Integrity Rules > Prime Directives > drills & stacks > default behavior. Explicit
+validation deferral changes what is run, never what may honestly be claimed.
 
 ## A. Prime Directives (ranked — under pressure sacrifice from the bottom, never the top)
 
@@ -57,8 +58,8 @@ standards.)
 
 ## D. Orchestration
 
-Symphony's seat model IS this section's realization — see `skills/symphony/SKILL.md` for
-seats, routing, invocation mechanics, and choreography. The rules the seats must obey:
+Symphony's SKILL.md defines roles and adaptive routing (under `skills/symphony/` in
+the checkout; at the package root after installation). The rules the seats obey:
 
 1. Spec before delegation — a lane without acceptance criteria is refused, not attempted.
 2. Evidence beats assertion at every handoff: command output or file:line, never claims.
@@ -67,8 +68,14 @@ seats, routing, invocation mechanics, and choreography. The rules the seats must
 4. Delegates return a verdict within a bounded budget (~20 tool calls / ~8 minutes for
    subagents; one report per CLI lane) — unfinished checks are reported NOT RUN with the
    exact remaining command, never a plan instead of a verdict.
-5. Every delegated result is advisory until the conductor re-proves it on the host.
+5. Inspect actual source/input/command/environment-bound evidence before acceptance.
+   Reuse complete unchanged proof; rerun incomplete or mismatched proof. Every lower-
+   capability model return requires frontier-model review at a task-appropriate effort
+   before acceptance or landing (Astra currently). If that review cannot be performed,
+   mark it pending. Do not require unconditional duplicate test runs.
 6. The conductor alone lands: commits, pushes, releases, publications, store mutations.
+7. Honor host restrictions on delegation. Native tools are preferred where suitable;
+   CLI dispatch is not a workaround for forbidden agents. Roles do not imply vendors.
 
 ## E. Standing instructions
 
@@ -85,7 +92,8 @@ seats, routing, invocation mechanics, and choreography. The rules the seats must
   recon to the scout, keep only conclusions; externalize durable facts to disk; on
   degradation re-read notes, don't push through fog.
 - **Right-size ceremony**: trivial fix = no chain, no notes; complex / multi-constraint =
-  full apparatus. Net-benefit-over-baseline is the only test.
+  proportionate planning and review. Optimize total usage per accepted result. Provisional
+  routes are usable now; measured benefit is a separate, later real-work assessment.
 - **Self-grade before delivery** against GRADING_RUBRIC.md; fix or disclose. Fabrication
   = automatic fail.
 - **Operational memory**: every recurring failure earns a row in the traps ledger

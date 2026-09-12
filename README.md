@@ -1,92 +1,68 @@
 # Symphony
 
-Multi-model orchestration for Claude Code with **one conductor and cheap, fast sections**.
+Model-agnostic orchestration: **one conductor, appropriately sized work, frontier
+review of lower-model returns, evidence before acceptance**. Native delegation is
+preferred; Codex CLI lanes remain available when the host permits them.
 
-Claude conducts: it decomposes the work, keeps the hardest and most consequential parts
-for itself, and delegates the rest —
-
-- **Builder** — [Codex CLI](https://github.com/openai/codex) (`gpt-5.6-sol`) implements
-  frozen specs at three effort tiers (`medium` / `high` / `max`).
-- **Scout** — Codex CLI in `-s read-only` with the account's web-search MCP: live web +
-  recency research, cross-repo retrieval, doc digestion, large-log triage. An empty answer
-  fails the lane (a silent exit is a failed lane, not a slow one). cursor-agent held this
-  seat until 2026-09-01 and was retired for unreliable print-mode output.
-- **Conductor** — Claude verifies every lane on the host, owns every side effect
-  (commits, PRs, releases), and plays the parts nobody else should touch.
-
-The core idea: **delegation is cheap, trust is not.** Every delegated result is advisory
-until the conductor re-proves it — re-running the tests, reading the full diff, checking
-scope. Known sandbox-artifact failure classes are re-tried on the host instead of being
-believed either way. Landing is always conductor-only.
-
-## What's here
-
-```
-skills/symphony/SKILL.md       the playbook the conductor loads (roles, routing, mechanics, contracts)
-score/                         the Score — the methodology, self-contained:
-  OPERATING.md                   ranked Prime Directives, Integrity Rules, orchestration law
-  TRAPS.md                       field-proven failure catalog (read before debugging anything twice)
-  PLAYBOOK.md, INTEGRITY.md, GRADING_RUBRIC.md, drills/ (26), stacks/, hooks/ (optional)
-scripts/symphony-dispatch.sh   one-line lane dispatch for either seat, with a JSONL run ledger
-scripts/symphony-status.sh     tail the ledger
-examples/SPEC-template.md      the frozen-spec contract every builder lane receives
-install.sh                     symlinks the skill into ~/.claude/skills (prints hook wiring)
-```
+Select models and efforts from current host capabilities. Initial provisional candidates
+are Luna for clear bounded work, Sol for substantial implementation, and Astra for hard
+reasoning and frontier review. These are guidance, not hard-coded IDs or measured
+rankings. Every lower-capability return receives a frontier-model review before
+acceptance, at an effort appropriate to its complexity and risk.
 
 ## Install
 
-```bash
-git clone https://github.com/flowmar47/symphony && cd symphony && ./install.sh
+```sh
+git clone https://github.com/flowmar47/symphony
+cd symphony
+./install.sh
 ```
 
-Prerequisites, verified at their own homes (Symphony configures neither):
-- `codex` ≥ 0.130, authenticated (`codex login`)
-- a web-search MCP server configured for `codex` (the scout's `plan` mode relies on it)
-- Claude Code with skills enabled
+Installation requires a clean committed checkout. It builds a complete content-checked
+package under `~/.symphony/packages/<commit>/symphony` and links it into Codex and Claude
+skills. Existing managed links can be updated; unexpected files or links are refused.
+Replaced links are retained under `~/.symphony/backups`. Nothing enables hooks, changes
+global model configuration or alters authentication. `--codex` and `--claude` select
+one host; no arguments selects both. Codex respects `CODEX_HOME` when set.
 
-Then say **"symphony"** (or "orchestrate this") in Claude Code and hand it something big.
+Invoke **Symphony** in a new host session. Installation does not force an already-
+running session to reload its skill catalog.
 
-## The routing table (short form)
+## CLI fallback
 
-| Work | Seat | Tier/mode |
-|---|---|---|
-| Novel / multi-constraint / unfamiliar | Builder `max` — or the conductor keeps it |
-| Behavioral features with tests, audits | Builder `high` |
-| Mechanical sweeps, plumbing, renames | Builder `medium` |
-| Web + recency research | Scout `plan` (Codex read-only, web search on) |
-| Repo/portfolio retrieval, doc digestion | Scout `ask` (Codex read-only, no web) |
-| Cold review of a diff or plan | Claude subagent (a different model from the builder) |
-| Signing, store state, deletion, money, publishing | **Conductor only** |
+Requires Python 3.9+ and an authenticated Codex CLI with `app-server` `model/list`,
+`exec --json`, model/effort overrides and sandbox support. Interfaces were inspected
+against CLI 0.154.0 and current official documentation; runtime validation is deferred.
 
-## Choreography
+```sh
+python3 scripts/symphony-models.py
+scripts/symphony-dispatch.sh builder high /absolute/spec.md /absolute/repo lane --model MODEL_ID
+scripts/symphony-dispatch.sh scout ask @/absolute/brief.md /absolute/repo facts --model MODEL_ID --effort auto
+scripts/symphony-status.sh
+```
 
-Solo → Duet (one builder lane) → Chained duet (sequential specs) → Trio (scout researches,
-conductor specs, builder implements) → Counterpoint (builder writes while scout
-cold-reviews the previous lane) → Tutti (parallel lanes, disjoint file ownership).
+`MODEL_ID` is an ID returned by live discovery, not a Symphony alias. Without an explicit
+model or `SYMPHONY_MODEL`, the dispatcher selects the catalog's sole recommended default
+and labels the route provisional. It never falls back from an unavailable explicit
+selection. Native role selection and evidence-led routing remain conductor
+responsibilities; the CLI runner does not pretend to judge model intelligence.
 
-The conductor never idle-polls: while a lane runs it verifies the previous one, preps the
-next spec, or advances its own hard part.
+See [CLI reference](skills/symphony/references/cli.md) for per-role overrides, dry runs,
+repair attempts, outcome records and limitations.
 
-## Failure discipline
+## Discipline without unnecessary overhead
 
-One precise fix-list resume per failed lane, then the conductor takes it over. Dead
-premises kill lanes, not goals. Tier escalations happen on evidence and get recorded so
-routing improves.
+Keep small work solo. Scope delegates narrowly, avoid overlapping writes, and load only
+relevant [Score](score/OPERATING.md) drills. Inspect source-bound evidence; repeat checks
+when source, inputs or environment change, not merely because another agent ran them.
+Lower-model returns need a frontier reviewer, not necessarily another vendor.
+Only the conductor performs authorized landings and external mutations.
 
-## Origins
+**Implemented but behaviorally unvalidated.** No mock processes, synthetic catalogs,
+simulated tasks or benchmark sweeps were used for this update. There are no measured
+quality, reliability or token-savings claims. Assess later on
+[real work](skills/symphony/references/real-work-assessment.md); that is not an install,
+merge or usability gate. Future releases need no source update while host discovery and
+invocation interfaces remain compatible; breaking host APIs may need adapter maintenance.
 
-Distilled from a production run: a 13-submission App Store release train + a
-multi-repo feature pass conducted this exact way — Codex building at tiered effort,
-every lane host-verified before landing, and the store/release surface never leaving
-the conductor's hands. The scout seat runs read-only by policy until it wins a
-bake-off for a write lane; that promotion path is part of the design.
-
-Symphony is **self-contained**: the discipline it runs on ships in this repo as
-**the Score** (`score/`) — ranked Prime Directives and Integrity Rules
-(`OPERATING.md`), a field-proven failure catalog distilled from production runs
-(`TRAPS.md`), 26 on-demand deep drills, per-stack notes, and optional enforcement
-hooks for Claude Code and Cursor. The Score is deliberately model-agnostic: seats
-name roles, not models, because the models will keep changing and the failure
-modes will not.
-
-MIT.
+MIT. Optional Score hooks remain host-specific and opt-in.

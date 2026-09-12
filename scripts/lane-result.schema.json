@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "files", "evidence", "not_run"],
+  "properties": {
+    "status": {"type": "string", "enum": ["completed", "partial", "failed"]},
+    "summary": {"type": "string"},
+    "files": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "not_run": {"type": "array", "items": {"type": "string"}}
+  }
+}

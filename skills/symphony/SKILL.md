@@ -1,181 +1,129 @@
 ---
 name: symphony
-description: Use when I say "symphony", "conduct", "orchestrate this", "delegate this across models", or when a task is big enough to split across Codex CLI lanes while Claude keeps the hardest parts. Multi-model orchestration — Claude conducts, Codex builds (workspace-write) and scouts (read-only with web search).
+description: Orchestrate substantial work across available models and reasoning efforts. Use when asked for Symphony, multi-model delegation, or coordinated parallel work; keep small tasks solo and respect the host's delegation restrictions.
 ---
 
-# Symphony — multi-model orchestration, one conductor
+# Symphony — one conductor, adaptable seats
 
-The primary agent — Claude in Claude Code today, whatever conducts tomorrow — is the **conductor**: it decomposes the work, keeps the hardest and
-most consequential parts for itself, delegates the rest to the right model at the right
-effort, verifies everything on the host, and lands the results. Delegates never commit,
-push, sign, or touch release state — the conductor owns every side effect.
+Any capable host model can conduct. Assign responsibility by **role**, then select an
+available model and effort for the task. No model family owns a seat permanently.
+The conductor owns integration and authorized landings; delegates never commit, push,
+publish, sign, spend money, or mutate release state.
 
-Symphony ships its own discipline: **the Score** (`score/` in this repo — OPERATING.md,
-INTEGRITY.md, PLAYBOOK.md, TRAPS.md, 26 drills, per-stack notes, optional enforcement
-hooks). The Score's rules apply to every seat: spec before delegation, evidence beats
-assertion at every handoff, explicit file ownership for parallel work, bounded verdicts,
-and no success claims without a host-run check. Where this file and the Score conflict,
-the Score wins. Read `score/OPERATING.md` once per session on serious work; load a drill
-(`score/drills/<name>.md`) when its situation arrives; pattern-match `score/TRAPS.md`
-before debugging anything twice.
+## Choose the smallest useful orchestra
 
-## The orchestra
-
-| Seat | Engine | Modes | What it gets |
-|---|---|---|---|
-| **Conductor** | Claude (this session) | — | Decomposition, architecture, novel/hard debugging, anything irreversible (commits, pushes, releases, store mutations, secrets), all verification, all landings, final integration |
-| **Builder** | Codex CLI (`gpt-5.6-sol`) | workspace-write | Implementation lanes against a frozen spec: features, tests, refactors, mechanical sweeps |
-| **Scout** | Codex CLI read-only (`-s read-only`; web search via the account's search MCP; `SYMPHONY_SCOUT_EFFORT=low|medium|high`) | ask / plan (read-only) | Fast breadth: web + recency research, cross-repo retrieval sweeps, doc digestion, cold second-opinion reviews, large-log triage |
-
-The scout starts **read-only by policy**, not by accident: the sandbox cannot edit. Promote
-the scout to write lanes only after it wins a bake-off against the builder on that task
-class, and record the promotion in this file.
-
-**Seat health is checked, never assumed.** cursor-agent held this seat until 2026-09-01, when
-its print mode proved unreliable on this bench (hangs on inherited stdin; intermittently empty
-output even with `</dev/null`; still failing after `cursor-agent update`), while read-only
-Codex answered every web-research probe correctly with cited URLs. The seat was retired rather
-than kept behind a preflight. The dispatcher fails a scout lane on empty output instead of
-recording it as done. Because builder and scout now share one vendor, a cold second-opinion
-review of builder output should come from the conductor's own model (a Claude subagent), not
-from another Codex lane.
-
-### Why this seating
-- The builder's strength is sustained, spec-faithful implementation with tests — give it
-  closed problems with acceptance criteria.
-- The scout's strength is latency and breadth — give it open questions where the answer is
-  "found", not "built": what exists, what changed upstream, what do these 40 repos share,
-  does this claim survive a cold read.
-- The conductor's strength is judgment — so it spends its tokens on decomposition, the
-  genuinely hard parts, and on *not trusting anyone*, including itself (the Score's review
-  chain applies to conductor-written code too).
-
-## Effort routing
-
-Pick the cheapest tier that the task class has actually succeeded at before; escalate on
-failure, never preemptively.
-
-| Task class | Seat | Tier |
+| Role | Responsibility | Authority |
 |---|---|---|
-| Novel algorithm, multi-constraint feature, unfamiliar domain | Builder | `max` (or conductor keeps it) |
-| Behavioral feature with tests, audit+fix passes, API surfaces | Builder | `high` |
-| Mechanical: shortcuts, config plumbing, renames, scaffolds-by-example | Builder | `medium` |
-| Web/recency research, "what is the current…" | Scout | plan+force |
-| Repo/portfolio retrieval, "which repos have…", doc digestion | Scout | ask |
-| Cold second-opinion review of a diff or plan | Claude subagent (a different model from the builder) | read-only |
-| Anything touching signing, store state, money, deletion, or public surfaces | **Conductor only** | — |
+| Conductor | Scope, routing, integration, acceptance, user communication | Only already-authorized external actions |
+| Builder | Implement a bounded spec and report evidence | Explicit writable scope; no landings |
+| Scout | Retrieve facts, research, inspect sources | Read-only; web only when permitted |
+| Verifier | Check actual artifacts against acceptance criteria | Read-only source; scoped execution when permitted |
+| Reviewer | Fresh-context critique of the design or diff | Read-only; independent of the author |
 
-## Invocation mechanics (verified on this bench)
+Small tasks stay solo. Parallelize independent work with disjoint ownership; serialize
+dependencies and heavy shared resources. Prefer native delegation when the host exposes
+suitable model/effort, permissions, ownership and completion controls. Use the CLI
+fallback only when allowed and useful. **If the host or user forbids agents, stay solo:
+a CLI process is not a workaround.** Do not create user-owned tasks for internal
+delegation without a request.
 
-### Builder — Codex CLI
-```bash
-# Launch (background for anything > ~2 min). Prompt via stdin heredoc; NEVER a bare
-# argument without stdin redirect — codex exec blocks forever on a non-TTY without EOF.
-codex exec -c sandbox_mode="workspace-write" -c approval_policy="never" \
-  -c model_reasoning_effort=<medium|high|max> \
-  --json -o /tmp/codex-<lane>.txt - <<EOF 2>/dev/null | grep thread.started
-GOAL: <one paragraph, what done looks like>
-SPEC: Read <absolute spec path> — implement exactly; report deviations.
-EOF
-# thread_id from the thread.started line; final report in the -o file (never parse the JSONL).
-# Fix rounds: codex exec resume "<thread_id>" --dangerously-bypass-approvals-and-sandbox \
-#   --json -o /tmp/codex-<lane>.txt - <"$FIXFILE"
-# Reviews: -s read-only on first call; resume forces -c sandbox_mode="read-only".
-```
+## Select models and effort from current capabilities
 
-### Scout — Codex read-only
-```bash
-# Web + recency research (plan): read-only sandbox, web search allowed, prompt via stdin,
-# never a bare argument (codex exec blocks on a non-TTY without EOF).
-codex exec --skip-git-repo-check -s read-only -c approval_policy="never" \
-  -c model_reasoning_effort=medium --json -o /tmp/scout-<lane>.txt - <<'EOF' 2>/dev/null >/dev/null
-READ-ONLY SCOUT LANE. Do not create, edit, or delete any file. Use web search and fetch
-freely; cite the URL for every load-bearing claim; label anything not observed as INFERRED.
-<research brief>
-EOF
-# Repo retrieval / doc digestion (ask): same command with the rule
-# "Do not use web search or fetch; answer from the repository and your own knowledge only."
-# Final answer lands in the -o file; the JSONL on stdout is the event log.
-# Run from the directory the question is about. Empty output = failed lane, re-dispatch or take over.
-```
+1. Discover available models, supported efforts and execution constraints. For the
+   Codex CLI fallback, use `scripts/symphony-models.py`, which queries public
+   `model/list`; do not read private model caches or guess successor IDs.
+2. Honor explicit selections. Otherwise use an accepted route for this task class or
+   choose a **provisional** route from current capability guidance. Availability alone
+   is not evidence of quality, affordability or task suitability.
+3. Use the lowest effort supported by evidence for the task's uncertainty and risk.
+   A hard problem can justify a frontier model immediately; do not waste cheap retries
+   to satisfy an escalation ritual. Effort meanings differ across providers; more
+   reasoning is not automatically better.
+4. Record the selection and rationale. Model IDs and effort values are runtime data,
+   not a release-by-release allowlist in code or this skill.
 
-Or use the bundled dispatcher, which wraps both and keeps a run ledger:
-```bash
-scripts/symphony-dispatch.sh builder <medium|high|max> <spec.md> <repo-dir> <lane-name>
-scripts/symphony-dispatch.sh scout  <ask|plan> "<prompt>" <dir> <lane-name>
-scripts/symphony-status.sh   # tail the ledger
-```
+Provisional starting candidates, **not fixed rules or measured rankings**:
 
-## The spec contract (builder lanes)
+| Work | Candidate if available | Starting effort |
+|---|---|---|
+| Clear retrieval, extraction, mechanical changes | Luna | Low / medium |
+| Scoped features, substantial implementation, integration | Sol | Medium / high |
+| Architecture, difficult debugging, consequential review | Astra | High; deeper only with justification |
 
-Every builder lane gets a frozen spec file. Codex starts with zero context — the spec is
-the whole briefing:
+Any capable available model may fill a role. New releases become candidates, not
+automatic replacements for proven routes. Keep current assignments in task records or
+per-invocation configuration, not this file. Never automatically enable premium
+execution or efforts that spawn nested agents: these need compatible authorization,
+concurrency and time budgets. Discovery failure is not license to invent a model.
 
-- **GOAL** — one paragraph of what done looks like, in user-visible terms.
-- **Writable scope** — exact repos/dirs; everything else is read-only. Parallel lanes get
-  disjoint scopes — no two seats edit the same file, ever. The scope must equal what the
-  dispatch can actually write: a builder's write sandbox is rooted at its launch directory,
-  so a spec naming four repos dispatched from one repo's cwd silently strands three —
-  dispatch multi-repo work as per-repo lanes (or from a common root, accepting the wider
-  blast radius the spec then has to constrain).
-- **Constraints** — what must not change (versions, policy values, deps, public claims).
-- **Non-goals** — the tempting adjacent work it must not do.
-- **Proof** — the exact commands whose verbatim output the report must include.
-- **STOP rule** — when a premise fails ("if X doesn't exist, stop and report what does").
+## Frontier review of delegated work
 
-## The verification contract (non-negotiable)
+**Every return from Sol, Luna or another lower-capability model requires a separate
+review by an appropriate current frontier model before acceptance or landing. Astra is
+the current initial frontier choice, not a permanent model ID.** This applies to code,
+plans, research and other artifacts, not just failed work. If capability is unknown,
+treat the return as requiring frontier review until resolved.
 
-Delegate output is **advisory until the conductor re-proves it on the host**:
+Give the reviewer the actual artifact/diff, task requirements, source-bound evidence and
+constraints, without priming it with the author's reasoning or desired verdict. Review
+at the best justified supported effort: medium for narrow deterministic work, high for
+behavioral changes or research synthesis, and a deeper available setting for difficult
+architecture, security or interacting constraints. These are starting points, not
+cross-model equivalence claims. Include review tokens in the total cost.
 
-1. Read the full report AND `git status --porcelain` in every writable repo — scope creep
-   is a finding even when the code is good.
-2. Re-run the proof commands yourself. A delegate's pasted output is never evidence.
-3. Known sandbox-artifact classes (Seatbelt denials, pasteboard nil in headless, AVFAudio
-   `1718449215`/`fmt?`, SwiftPM nested `sandbox-exec`, simulator services unavailable) are
-   **environment, not regression** — but you must prove that by running the same suite on
-   the host, not by assuming it.
-4. Scout research: spot-check at least one load-bearing claim against its cited source
-   before acting on it. No citation → treat as unverified hypothesis.
-5. Landing (branch, commit, PR, merge) is conductor-only, after verification, with
-   problem-first commit messages and the attribution trailer naming every seat that played
-   (e.g. `Opus 5 via Claude Code (Codex gpt-5.6-sol built, Codex read-only scouted, Claude verified)`;
-   name the engine that actually answered — the ledger records it per lane).
+The frontier conductor may perform this review itself in a separate deliberate pass
+when its capability is established; use fresh-context native review when permitted and
+appropriate. Do not have the lower-capability author approve itself. A return from an
+unknown model cannot be exempted by claiming it is frontier. If an appropriate reviewer
+is unavailable or delegation is forbidden and the conductor cannot fill that role,
+report **frontier review pending**; do not quietly accept or land the result. Frontier-
+authored work still gets risk-proportionate verification and review.
 
-## Choreography patterns
+## Brief once, report compactly
 
-- **Solo** — conductor does it. Default for small work; delegation has overhead.
-- **Duet** — one builder lane, conductor verifies + lands. The workhorse.
-- **Chained duet** — several specs, one background command, sequential (shared machine
-  resources, ordered risk). Proven shape for multi-repo sweeps.
-- **Trio** — scout researches → conductor writes spec from findings → builder implements.
-  Use when the spec depends on facts you don't have (upstream APIs, current versions).
-- **Counterpoint** — builder implements while a Claude subagent cold-reviews the *previous*
-  lane's diff, or the scout independently re-verifies the same public claims. Never on the
-  same files concurrently.
-- **Tutti** — parallel builder lanes with disjoint repo ownership + a scout sweep.
-  Reserve for breadth (portfolio passes); state file ownership in every spec.
+Every lane receives goal, acceptance criteria, exact scope, constraints, non-goals,
+relevant inputs and a stop rule. Use `examples/SPEC-template.md` for CLI builders.
+Include only necessary context; point to large logs instead of copying them to every
+agent. Inherited host instructions still apply; a fresh brief is not a clean-room claim.
 
-While any lane runs, the conductor keeps working: verify the previous lane, prep the next
-spec, or advance its own hard part. Never idle-poll; land results as notifications arrive.
+Use bounded work units and verdicts. Reports distinguish completion, partial work,
+failure and checks not run, with artifact/log references. A failed lane gets at most one
+precise repair attempt before conductor takeover or re-scoping. Authentication,
+permissions, unavailable tools and invalid premises need diagnosis, not a more expensive
+model. Use notifications or bounded waits; low CPU alone does not prove a hung process.
 
-## Failure discipline
+## Accept evidence, not assertions
 
-- A failed lane gets **one** resume with a precise fix list; after the second failure the
-  conductor takes the work over directly (the Score’s 3-strike rule).
-- A dead premise kills the lane, not the goal: record it, re-scope, redispatch.
-- Escalate tiers on evidence ("medium produced shallow tests twice for this class"), and
-  record the escalation so routing improves.
-- Runaway/hung lane: check the process table before assuming progress; a silent lane with
-  ~0 CPU is blocked, not thinking.
+Read the report, source diff and scope status. Inspect actual execution records bound
+to exact source, inputs, command and environment. Reuse complete unchanged evidence;
+rerun when those change or evidence is missing or unreliable. An author-pasted summary
+alone is insufficient. Keep the mandatory frontier review above and final integration
+checks where warranted, without duplicating every test by ritual.
 
-## The Score in one breath
+Conductor landings still need authorization. Use problem-first commit/PR descriptions
+and truthful model/harness attribution; label an unreported identity instead of guessing.
 
-The methodology is part of the framework, not a prerequisite: `score/OPERATING.md` holds
-the ranked Prime Directives and Integrity Rules every seat obeys; `score/TRAPS.md` is the
-field-proven failure catalog (pipelines that lie, premises that die, sandboxes that fake
-failures, digests that hash two ways) — consult it before any second debugging attempt;
-`score/drills/` are the deep procedures, loaded on demand; `score/hooks/` optionally
-enforces the mechanical subset (risk guard, delivery gate, per-edit verify) in Claude Code
-or Cursor. The builder→verify→cold-review chain for Standard+ work realizes the Score's
-review discipline: builder lane → conductor host verification → cold review by a Claude
-subagent (the scout re-verifies public claims; it does not review its own vendor's code).
+Execution completion is not acceptance. If validation is explicitly deferred, report
+**implemented but behaviorally unvalidated** through publication. Never turn a process
+exit code into verified acceptance or a savings claim.
+
+Optimize total usage per accepted result, including failures, repairs, frontier review
+and integration. Keep requested/resolved/reported model and effort distinct. Record
+actual available counters, duration and retries; missing telemetry or pricing is
+unknown, not zero. Do not attribute provider-rerouted work to the requested model.
+
+## Resources — load only what this task needs
+
+In a checkout, resource paths below are relative to the repository root (two levels
+above this file). Installation places a complete package beside SKILL.md, so the same
+paths resolve from the installed skill root.
+
+- Serious multi-step work: read `score/OPERATING.md`; load individual `score/drills/`
+  only when relevant. Do not copy the entire Playbook into every lane.
+- CLI discovery, dispatch, repair and status: read [CLI reference](references/cli.md).
+- Later assessment on real work: read [real-work assessment](references/real-work-assessment.md).
+  Calibration is not a prerequisite for creating, installing or using this skill.
+- Repeated operational failures: consult the relevant `score/TRAPS.md` entry.
+
+Host/system rules and explicit user scope remain authoritative over the Score and this
+skill. Optional hooks are not installed or enabled by using Symphony.

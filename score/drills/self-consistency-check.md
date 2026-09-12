@@ -1,6 +1,6 @@
 ---
 name: self-consistency-check
-description: Force the combination step that a weaker model can't do in one pass — surface conflicts between constraints, and interactions between requirements and edge cases, using a pairwise sweep, a fresh-context cold read by a subagent that never saw your reasoning, and N-version divergence on the hard kernel. Trigger this after producing a plan, design, spec, or multi-constraint solution and BEFORE committing to it — especially when the task carries more than ~3 interacting constraints, a schema/interface decision, or high stakes. Do NOT trigger for a single-constraint or trivial task (17.3 tiers say skip it), for reviewing an already-written code diff (that's code-review), or for verifying tests ran (that's verification-and-review). This skill checks that the DESIGN is internally consistent before code exists.
+description: Check interacting requirements and edge cases before committing to a consequential design. Use a bounded constraint sweep and frontier review, respecting host delegation restrictions. Skip elaborate checks for trivial tasks; use code-review for existing diffs.
 ---
 
 # Self-Consistency Check
@@ -31,7 +31,10 @@ with **procedure**: enumeration (which a weaker model does reliably) forced into
 You miss the conflict because you're anchored on the path that produced the design. Someone who
 never walked that path is structurally better positioned to see it.
 
-1. Delegate to a subagent. Give it ONLY the artifacts — the spec and the plan/design.
+1. When permitted, use an appropriate frontier reviewer through native delegation.
+   Give it the requirements and artifacts, not a preferred verdict. A capable frontier
+   conductor may instead perform a distinct deliberate review pass. Do not bypass host
+   restrictions through a CLI agent. If neither option is available, mark review pending.
 2. **Withhold your reasoning trace.** Do not tell it what you were thinking or why; that's the
    anchor you're trying to escape. Hand it the reasoning and it inherits your blind spot.
 3. Ask exactly: "Which two statements here cannot both be true? Which requirement has no
@@ -43,9 +46,11 @@ never walked that path is structurally better positioned to see it.
 Parallelism substitutes for depth on the one part that matters most.
 
 1. Identify the hard kernel (problem-framing / §15.1) — the ~20% that decides the outcome.
-2. Spawn 2–3 subagents to solve *just the kernel* independently — they must not see each
-   other's attempts.
-3. Diff the results. **Where they agree**, you're probably safe. **Where they diverge** is the
+2. Only when authorized and justified, compare at most two candidate trials per task
+   class per invocation on genuine work. Keep their contexts separate and include
+   frontier review and integration in total measured usage. Do not make a comparison
+   a prerequisite for using or publishing a provisional route.
+3. Diff the results. Agreement alone is not proof. **Where they diverge** is the
    load-bearing, uncertain decision — the exact spot a single pass would have committed to
    blindly. Investigate every divergence; often one branch honored a constraint the others
    dropped, which tells you both the right answer and which constraint was slippery.
@@ -72,7 +77,7 @@ open a link; C5 GDPR — a user can delete their account and all associated PII.
 
 For the design under check: a pairwise sweep grid exists with every plausible pair marked
 compatible-or-conflict; every conflict is resolved or logged as an explicit open decision;
-for interacting/high-stakes designs a fresh-context cold read ran on the artifacts alone; and
-for the hard kernel, either you were certain enough to skip divergence (say so) or 2–3
-independent attempts were diffed and every divergence investigated. Then hand the consistent
+for interacting/high-stakes designs an appropriate frontier review ran or is explicitly pending; and
+for the hard kernel, either comparison was unnecessary/deferred (say so) or authorized
+bounded attempts were diffed and every divergence investigated. Then hand the consistent
 design to task-planning / builder.
