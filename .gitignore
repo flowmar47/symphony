@@ -1,2 +1,3 @@
 .symphony/
 *.jsonl
+__pycache__/

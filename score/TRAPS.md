@@ -59,24 +59,26 @@ Add new entries with the same shape: **trap → symptom → rule**.
   denials, headless pasteboard/audio/simulator failures, cache-write refusals: delegated
   runs fail these while the code is fine. *Rule:* re-run the same suite on the host
   before believing either verdict; keep a list of your bench's known artifact classes.
-- **Delegate reports are advisory.** Pasted test output proves nothing. *Rule:* the
-  conductor re-runs proof commands and reads the full diff plus `git status` — scope
-  creep is a finding even when the code is good.
+- **Delegate reports are advisory.** A pasted summary alone is not proof. *Rule:* inspect
+  actual source/input/command/environment-bound evidence and the full diff plus status.
+  Reuse unchanged complete evidence; rerun mismatched or incomplete proof. Lower-model
+  work requires frontier review. Scope creep is a finding even when the code is good.
 - **A delegate's write scope is its launch directory.** Sandboxed builders can only write
   under the cwd they started in; a multi-repo spec dispatched from one repo makes the rest
   read-only and the lane "completes" having deferred them. *Rule:* one lane per repo, or
   launch from a common root and let the spec do the constraining.
-- **A silent lane at ~0 CPU is blocked, not thinking.** *Rule:* check the process table
-  and its open fds before waiting on it; find what it's actually waiting for.
+- **Low CPU is not proof of a hung lane.** *Rule:* inspect the owned process and its
+  progress/terminal events. Waiting on a remote model or tool can be legitimate;
+  apply a stated wall-clock budget rather than diagnosing from CPU alone.
 - **A silent exit is a failed lane, not a slow one.** The former scout CLI returned exit 0
   and a 1-byte answer for a 6 KB research brief — and for a one-word "PONG" — when its stdin
   was an inherited non-TTY pipe; with `</dev/null` it answered some runs and returned nothing
   (exit 0 or 1) on others, before and after updating it. Ten minutes were spent waiting on
-  "progress" that never existed, and the seat was retired. *Rule:* preflight any new delegate
-  seat with a one-word ping before dispatching real work; redirect stdin from `/dev/null` for
-  any CLI that might read it; treat empty output as failure in the dispatcher (never
-  `state=done`); record which engine actually played in the ledger and the attribution
-  trailer; and retire a seat that fails its ping twice rather than keeping it behind fallbacks.
+  "progress" that never existed, and the seat was retired. *Rule:* provide explicit EOF,
+  capture exit status and terminal events, and treat empty output as failure. Never
+  reuse a prior attempt's report. Record requested and reported model separately, not
+  an assumed identity from a seat name. Assess reliability on real work when permitted,
+  not through a mandatory ping or an invented benchmark.
 
 ## Tools and environments
 
