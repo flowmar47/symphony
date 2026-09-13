@@ -1138,8 +1138,9 @@ what it can't:
    path that produced the artifact. A reader given ONLY the artifacts (spec + plan/design) and
    *no reasoning trace*, asked "which two statements here cannot both hold? what interaction is
    unhandled?", can challenge it without that history. Use native review when permitted;
-   a frontier conductor may instead take a distinct review pass. Lower-model returns
-   always require an appropriate frontier reviewer. Do not work around a no-agent host.
+   a frontier conductor may instead take a distinct review pass. Fast, Standard, or
+   unknown-capability returns always require an appropriate current-frontier reviewer.
+   Do not work around a no-agent host.
 3. **Independent alternatives, only when warranted.** On a genuinely difficult kernel,
    authorized independent attempts may expose different assumptions. Bound candidate
    comparison to two trials per task class per invocation and include review/integration

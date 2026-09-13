@@ -11,13 +11,17 @@ When assessment is requested or relevant to genuine authorized work:
 2. Consider at most two candidate trials per task class per invocation, within its
    authorization, time and concurrency budget. If agents are forbidden, stay solo.
    Never multiply outward actions merely to compare models.
-3. Inspect actual artifacts and source-bound evidence. Every lower-model return gets
-   frontier review before acceptance. Freeze the rubric first; give a fresh reviewer
-   requirements and evidence without a preferred winner. Record unperformed checks
-   and failures. Different inputs or environments make comparisons observational.
+3. Inspect actual artifacts and source-bound evidence. Every Fast, Standard, or
+   unknown-capability return gets current-frontier review before acceptance. Freeze
+   the rubric first; give a fresh reviewer requirements and evidence without a
+   preferred winner. The quality bar is the same checks a frontier-max solo pass
+   would have to pass. Record unperformed checks and failures. Different inputs or
+   environments make comparisons observational.
 4. Compare total measured usage through acceptance: attempts, repairs, verification,
    frontier review and integration. Use host counters, not character-to-token guesses.
    Missing counters/pricing are unknown; tokens alone are not currency savings.
+   A cheaper route that a frontier reviewer rewrites is a loss versus starting on
+   frontier.
 5. Promote only after required outcomes pass, review finds no quality regression and
    measured total usage improves. Otherwise retain the incumbent or label the result
    provisional/inconclusive. Save observed model/effort, environment, source/input

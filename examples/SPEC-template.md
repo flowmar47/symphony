@@ -26,4 +26,4 @@ If <premise> does not hold, STOP and report exactly what exists instead — do n
 - <time/tool-call budget and exact remaining command if incomplete>
 Reuse inspected unchanged evidence; return a compact verdict with artifact references,
 not a full log dump. Mark all unperformed checks NOT RUN. Completion is not acceptance;
-lower-model returns require frontier review by the conductor or an appropriate reviewer.
+Fast, Standard, or unknown-capability returns require current-frontier review by the conductor or an appropriate reviewer.

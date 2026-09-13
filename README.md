@@ -1,14 +1,16 @@
 # Symphony
 
-Model-agnostic orchestration: **one conductor, appropriately sized work, frontier
-review of lower-model returns, evidence before acceptance**. Native delegation is
-preferred; Codex CLI lanes remain available when the host permits them.
+Model-agnostic orchestration: **one conductor, live catalog routing, frontier-max
+quality floor, cheaper slices only when a tight spec plus frontier review can hold
+that floor**. Native delegation is preferred; Codex CLI lanes remain available when
+the host permits them.
 
-Select models and efforts from current host capabilities. Initial provisional candidates
-are Luna for clear bounded work, Sol for substantial implementation, and Astra for hard
-reasoning and frontier review. These are guidance, not hard-coded IDs or measured
-rankings. Every lower-capability return receives a frontier-model review before
-acceptance, at an effort appropriate to its complexity and risk.
+Select models and efforts from **this session's** host catalog — never from names in
+the skill. Map work to Fast / Standard / Frontier bands using live signals; prefer
+the latest listed version of a family when the user did not pin one. A new frontier
+release becomes a candidate when the host lists it. Every Fast, Standard, or
+unknown-capability return receives a current-frontier review before acceptance, at
+the effort a frontier-max solo pass would have used on that slice.
 
 ## Install
 
@@ -48,15 +50,18 @@ selection. Native role selection and evidence-led routing remain conductor
 responsibilities; the CLI runner does not pretend to judge model intelligence.
 
 See [CLI reference](skills/symphony/references/cli.md) for per-role overrides, dry runs,
-repair attempts, outcome records and limitations.
+repair attempts, outcome records and limitations. Conductor band mapping lives in
+[routing](skills/symphony/references/routing.md).
 
 ## Discipline without unnecessary overhead
 
 Keep small work solo. Scope delegates narrowly, avoid overlapping writes, and load only
 relevant [Score](score/OPERATING.md) drills. Inspect source-bound evidence; repeat checks
 when source, inputs or environment change, not merely because another agent ran them.
-Lower-model returns need a frontier reviewer, not necessarily another vendor.
-Only the conductor performs authorized landings and external mutations.
+Fast, Standard, or unknown-capability returns need a current-frontier reviewer, not
+necessarily another vendor. Inherit the conductor's model only when it already matches
+the slice's band and effort. Only the conductor performs authorized landings and
+external mutations.
 
 **Implemented but behaviorally unvalidated.** No mock processes, synthetic catalogs,
 simulated tasks or benchmark sweeps were used for this update. There are no measured

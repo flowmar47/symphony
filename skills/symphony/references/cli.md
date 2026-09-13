@@ -29,7 +29,8 @@ Model precedence: `--model`, then `SYMPHONY_BUILDER_MODEL`/`SYMPHONY_SCOUT_MODEL
 `auto`). `auto` resolves to the selected model's advertised default. Explicit unsupported
 model/effort selections fail. Every run still passes its resolved model and effort
 explicitly to Codex. The script does not assign qualitative economy/frontier rankings;
-the conductor makes and records those decisions from current evidence.
+the conductor makes and records those decisions from current evidence. Band
+mapping and inherit rules live in [routing](routing.md).
 
 An auto-selected delegating effort is refused. An explicitly selected delegating effort
 requires `--allow-nested-delegation`, which attests that the conductor checked actual
@@ -101,8 +102,9 @@ print prompts or model answers. Historical ledger rows remain readable with miss
 new fields shown as null.
 
 The dispatcher never self-certifies frontier review. The conductor records the actual
-review and acceptance in task records, citing the attempt. All lower-model returns
-require frontier review, even if the CLI says `completed`.
+review and acceptance in task records, citing the attempt. All Fast, Standard, or
+unknown-capability returns require current-frontier review, even if the CLI says
+`completed`.
 
 ## Interface sources and validation status
 
