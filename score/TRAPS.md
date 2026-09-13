@@ -61,8 +61,9 @@ Add new entries with the same shape: **trap → symptom → rule**.
   before believing either verdict; keep a list of your bench's known artifact classes.
 - **Delegate reports are advisory.** A pasted summary alone is not proof. *Rule:* inspect
   actual source/input/command/environment-bound evidence and the full diff plus status.
-  Reuse unchanged complete evidence; rerun mismatched or incomplete proof. Lower-model
-  work requires frontier review. Scope creep is a finding even when the code is good.
+  Reuse unchanged complete evidence; rerun mismatched or incomplete proof. Fast,
+  Standard, or unknown-capability work requires current-frontier review. Scope creep
+  is a finding even when the code is good.
 - **A delegate's write scope is its launch directory.** Sandboxed builders can only write
   under the cwd they started in; a multi-repo spec dispatched from one repo makes the rest
   read-only and the lane "completes" having deferred them. *Rule:* one lane per repo, or
