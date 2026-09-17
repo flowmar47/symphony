@@ -3,6 +3,7 @@
 import json
 from contextlib import suppress
 import os
+import re
 import selectors
 import shutil
 import subprocess
@@ -138,8 +139,40 @@ def select(models, requested_model, requested_effort):
     if not isinstance(effort, str) or effort not in efforts:
         raise CatalogError("Requested/default effort is not supported by the selected model")
     # Special execution modes are never inferred from a larger ordinal or model name.
-    description = str(efforts[effort].get("description", "")).lower()
-    nested = effort.lower() == "ultra" or any(word in description for word in ("delegat", "subagent", "sub-agent"))
+    nested = is_nested_effort(model, effort, efforts[effort])
     if requested_effort == "auto" and nested:
         raise CatalogError("Default effort may delegate; choose an explicit non-delegating effort")
     return model, effort, nested
+
+
+def is_nested_effort(model, effort, option):
+    """True when live catalog metadata says this effort may spawn nested agents.
+
+    Do not match remembered effort names. New nested modes are detected from
+    host fields and descriptions; a newly listed non-delegating name is not
+    blocked just because an older catalog once used it for delegation.
+    """
+    rows = (model, option)
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for key, value in row.items():
+            lowered = str(key).lower()
+            if value is True and any(
+                token in lowered for token in ("delegat", "subagent", "nested")
+            ):
+                return True
+    blob = f"{effort} " + " ".join(
+        str(row.get(key, ""))
+        for row in rows
+        if isinstance(row, dict)
+        for key in ("reasoningEffort", "description", "name", "label")
+    )
+    cleaned = re.sub(r"\bnon-delegat\w*|\bnot\s+delegat\w*", " ", blob, flags=re.I)
+    return bool(
+        re.search(
+            r"\bdelegat\w*|\bsub-?agents?\b|\bnested(?:-|\s)agents?\b|\bmulti(?:-|\s)agents?\b",
+            cleaned,
+            flags=re.I,
+        )
+    )

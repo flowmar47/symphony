@@ -108,9 +108,11 @@ unknown-capability returns require current-frontier review, even if the CLI says
 
 ## Interface sources and validation status
 
-Inspected against Codex CLI 0.154.0 help and official documentation on 2026-09-12:
+Inspected against then-current Codex CLI help and official documentation on 2026-09-12
+(CLI 0.154.0 at inspection time):
 [app server/model discovery](https://learn.chatgpt.com/docs/app-server) and
 [non-interactive JSON output](https://learn.chatgpt.com/docs/non-interactive-mode).
-Actual model discovery, dispatch, resume, cancellation and routing effectiveness remain
+Re-check the installed CLI's `--help` and `model/list`; that date is provenance, not a
+pin. Actual model discovery, dispatch, resume, cancellation and routing effectiveness remain
 **behaviorally unvalidated** in this release. No mocks, synthetic tests, simulated
 agents or benchmarks were run. Test later on real work; it is not an installation gate.
