@@ -1,6 +1,6 @@
 ---
 name: symphony
-description: Use when asked for Symphony, multi-model delegation, coordinated parallel work, or routing slices across currently available models and reasoning efforts. Keep small tasks solo and respect the host's delegation restrictions.
+description: Use when asked for Symphony, or when a task has independent slices or a justified cheaper-band lane that must still meet frontier-quality acceptance. Not for a single bounded edit, trying a newly listed model ID, or adversarial plan/diff review (use model-loop or clodex-loop). Stay solo when the host forbids agents.
 ---
 
 # Symphony — one conductor, live seats
@@ -16,6 +16,23 @@ commit, push, publish, sign, spend money, or mutate release state.
 model at its highest *non-delegating* effort would: requirements complete, evidence-bound,
 interacting constraints handled, no silent downgrades. Cheaper lanes spend less on
 well-specified slices; they do not lower the bar.
+
+## Skip unless the orchestra earns its keep
+
+Symphony is worth invoking when independent slices can run in parallel, or when a
+cheaper band can follow a frontier-quality spec and still survive frontier review.
+It is not a way to try a newly listed ID, fan a single edit across models, or replace
+an adversarial plan/diff loop.
+
+Stay solo when:
+
+- the task is one bounded change with one owner;
+- the host or user forbids agents;
+- there is no live catalog, or discovery failed;
+- a cheaper lane plus review would cost more than one frontier pass.
+
+A newly listed catalog entry is a **candidate**, not a reason to reroute in-flight
+work or to invoke this skill.
 
 ## Choose the smallest useful orchestra
 
@@ -46,7 +63,7 @@ internal lanes; still honor explicit user pins.
    is not evidence of quality, cost, or fit.
 3. Prefer the **latest listed version of a family** when the user did not pin a version.
    Map each listed option to a **band** from host signals only (see
-   [routing](references/routing.md)). Do not keep a named ranking in this file.
+   [routing](references/routing.md)). Do not keep a named ranking or nickname list in this file.
 4. Match **effort** to uncertainty and blast radius, using the host's actual controls
    (separate effort field, or the effort/thinking suffix on a slug). Lowest effort the
    evidence supports. A hard kernel goes to frontier immediately — do not burn cheap

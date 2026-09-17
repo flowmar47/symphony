@@ -8,9 +8,13 @@ the host permits them.
 Select models and efforts from **this session's** host catalog — never from names in
 the skill. Map work to Fast / Standard / Frontier bands using live signals; prefer
 the latest listed version of a family when the user did not pin one. A new frontier
-release becomes a candidate when the host lists it. Every Fast, Standard, or
-unknown-capability return receives a current-frontier review before acceptance, at
-the effort a frontier-max solo pass would have used on that slice.
+release becomes a candidate when the host lists it; it is not a reason to invoke
+Symphony or to reroute in-flight work. Every Fast, Standard, or unknown-capability
+return receives a current-frontier review before acceptance, at the effort a
+frontier-max solo pass would have used on that slice.
+
+Keep small work solo. Symphony is for independent slices or a cheaper band under a
+frontier spec and review — not model tourism, and not an adversarial plan/diff loop.
 
 ## Install
 

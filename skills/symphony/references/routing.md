@@ -27,9 +27,11 @@ Classify **listed options**, not vendors. Use host signals in this order:
 1. User pin or an accepted task-class route in records.
 2. Host labels/descriptions: speed, cost, default, reasoning, frontier — descriptions
    are routing signals, not a security boundary.
-3. Structural tokens in the listed ID, case-insensitive: `fast`, `flash`, `mini`,
-   `nano`, `lite` → Fast; presence of high/max/xhigh thinking **as a supported
-   effort on that family** means the family can fill Frontier.
+3. Structural tokens in the listed ID are a last resort, and only when host labels are
+   silent. Do not keep a nickname list in this file. If the ID is ambiguous, band it
+   **Standard** (unknown capability) and require frontier review of its return.
+   Presence of high/max thinking **as a supported effort on that family** means the
+   family can fill Frontier.
 4. Host default → Standard when no better signal exists.
 5. Strongest remaining reasoning controls (highest supported non-delegating effort,
    latest version of that family) → Frontier.
@@ -112,6 +114,8 @@ Do not:
 | Mistake | Correction |
 |---|---|
 | Reusing last month's family names from this file | Read this session's catalog |
+| Banding by remembered nicknames in an ID | Host labels first; ambiguous ID → Standard + review |
+| Treating a remembered effort name as nested | Live description/fields only |
 | Inheriting frontier onto a scout | Fast band, explicit cheap ID |
 | Inheriting a cheap conductor onto review | Frontier reviewer, or pending |
 | Inventing a slug or successor ID | Only listed IDs |
