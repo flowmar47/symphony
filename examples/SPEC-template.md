@@ -20,10 +20,15 @@ If <premise> does not hold, STOP and report exactly what exists instead — do n
 ## Acceptance criteria
 - <observable required outcome and relevant edge cases>
 
+## Verification
+- <exact commands to run after the final edit; what to do if one cannot run here>
+
 ## Evidence and budget
 - <required check, or explicitly deferred validation with reason>
 - <source and input identity, command, environment/pins, exit code and output path>
 - <time/tool-call budget and exact remaining command if incomplete>
 Reuse inspected unchanged evidence; return a compact verdict with artifact references,
-not a full log dump. Mark all unperformed checks NOT RUN. Completion is not acceptance;
-Fast, Standard, or unknown-capability returns require current-frontier review by the conductor or an appropriate reviewer.
+not a full log dump. Mark required checks you did not execute NOT RUN (forbidden actions
+are not checks). End with one fenced ```json block: {"status", "summary", "files",
+"evidence", "not_run"}. Completion is not acceptance; lower-tier returns require frontier
+review by the conductor or the reviewer seat.

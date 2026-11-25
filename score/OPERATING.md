@@ -58,7 +58,7 @@ standards.)
 
 ## D. Orchestration
 
-Symphony's SKILL.md defines roles and live catalog routing (under `skills/symphony/` in
+Symphony's SKILL.md defines roles and adaptive routing (under `skills/symphony/` in
 the checkout; at the package root after installation). The rules the seats obey:
 
 1. Spec before delegation — a lane without acceptance criteria is refused, not attempted.
@@ -68,16 +68,17 @@ the checkout; at the package root after installation). The rules the seats obey:
 4. Delegates return a verdict within a bounded budget (~20 tool calls / ~8 minutes for
    subagents; one report per CLI lane) — unfinished checks are reported NOT RUN with the
    exact remaining command, never a plan instead of a verdict.
-5. Inspect actual source/input/command/environment-bound evidence before acceptance.
-   Reuse complete unchanged proof; rerun incomplete or mismatched proof. Every Fast,
-   Standard, or unknown-capability return requires current-frontier review at a
-   task-appropriate effort before acceptance or landing. If that review cannot be
-   performed, mark it pending. Do not require unconditional duplicate test runs.
-6. The conductor alone lands: commits, pushes, releases, publications, store mutations.
-7. Honor host restrictions on delegation. Native tools are preferred where suitable;
-   pass an explicit live catalog model/effort unless the conductor already matches the
-   slice's band. CLI dispatch is not a workaround for forbidden agents. Roles do not
-   imply vendors.
+ 5. Inspect actual source/input/command/environment-bound evidence before acceptance.
+    Reuse complete unchanged proof; rerun incomplete or mismatched proof. Every Fast,
+    Standard, or unknown-capability return requires current-frontier review at a
+    task-appropriate effort before acceptance or landing. If that review cannot be
+    performed, mark it pending. Do not require unconditional duplicate test runs.
+ 6. The conductor alone lands: commits, pushes, releases, publications, store mutations.
+    Under Symphony the conductor does not implement; it re-dispatches instead of coding.
+ 7. Honor host restrictions on delegation. Native tools are preferred where suitable;
+    pass an explicit live catalog model/effort unless the conductor already matches the
+    slice's band. CLI dispatch is not a workaround for forbidden agents. Roles do not
+    imply vendors; seats are filled from live discovery and confirmed with the user each invocation.
 
 ## E. Standing instructions
 

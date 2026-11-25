@@ -79,7 +79,34 @@ Add new entries with the same shape: **trap → symptom → rule**.
   capture exit status and terminal events, and treat empty output as failure. Never
   reuse a prior attempt's report. Record requested and reported model separately, not
   an assumed identity from a seat name. Assess reliability on real work when permitted,
-  not through a mandatory ping or an invented benchmark.
+  not through a mandatory ping or an invented benchmark. (Both CLIs answered again on
+  2026-09-20 with explicit `/dev/null` stdin, `stream-json` output for Cursor and the
+  prompt as the last argument for agy; the dispatcher encodes those findings.)
+
+- **A lane can "complete" in the wrong directory.** agy in `--mode plan` answered a
+  repository question from its own scratch workspace and reported, with evidence, that
+  README.md did not exist; the state read `completed`. *Rule:* every engine gets the lane
+  directory explicitly (`--add-dir`, `--workspace`, `cwd`) **and** the brief names the
+  absolute path; the conductor checks the evidence paths point inside that directory.
+- **An interactive terminal's timing lies to a pipe.** Watched on a TTY, Cursor's CLI
+  prints its result and then idles about a minute; piped to a file, the buffered result
+  only lands one second before exit, so a "stop it after the result" watcher never fires.
+  A first version of the dispatcher carried exactly that dead branch. *Rule:* measure
+  when output reaches the file you are actually reading, not the terminal; budget the
+  idle as lane cost; bound every lane with a wall clock, since one probe in five printed
+  nothing at all.
+- **Requested model ≠ served model.** `claude -p --model haiku` was served by
+  `claude-sonnet-5` on this bench. *Rule:* record requested, resolved and reported identity
+  separately and attribute work to what the record says was served.
+- **Headless permission prompts become silent denials.** agy in plan mode auto-denied a
+  shell command it could not prompt for and returned an empty response with exit 0 and
+  `status: SUCCESS`; only `denied_actions` and stderr said why. *Rule:* a lane record keeps
+  denied actions beside the state; an empty response is a failure; give a seat only work
+  its headless permissions can actually do.
+- **Forbidden actions are not NOT-RUN checks.** A scout listed "git push, file edits, web
+  search" under `not_run` and turned a complete answer into `partial`. *Rule:* the report
+  contract says NOT RUN means required checks not executed; the reviewer reads the list
+  rather than trusting the state.
 
 ## Tools and environments
 
@@ -92,6 +119,12 @@ Add new entries with the same shape: **trap → symptom → rule**.
 - **Installers and binaries vanish.** Disk cleanups delete tool payloads behind intact
   symlinks. *Rule:* `which` + `--version` before concluding anything about a tool, and
   before concluding it's *missing*, too — prove absence the same way you'd prove presence.
+- **A print flag that takes a value swallows the next flag.** `agy -p --model X "prompt"`
+  used `--model` as the prompt and ignored the real one (exit 2, no lane); `agy --json-schema`
+  in `json` output mode returned after the timeout with zero turns. *Rule:* put value-taking
+  print flags last, verify each flag once on a trivial prompt, and read the exit code.
+- **Variadic options eat the trailing positional.** `claude -p ... --disallowedTools A B <prompt>`
+  would take the prompt as a tool name. *Rule:* positional prompt first, comma-joined lists.
 - **Nested heredocs collide.** A heredoc whose *content* contains the outer delimiter
   terminates early and parses garbage. *Rule:* unique delimiters, or write files with a
   proper file-writing tool instead of shell quoting.

@@ -31,8 +31,11 @@ def discover(binary, cwd):
         selector = selectors.DefaultSelector()
 
         def send(message):
-            process.stdin.write((json.dumps(message) + "\n").encode())
-            process.stdin.flush()
+            try:
+                process.stdin.write((json.dumps(message) + "\n").encode())
+                process.stdin.flush()
+            except OSError as error:
+                raise CatalogError("Codex app-server closed stdin unexpectedly") from error
 
         def request(identifier, method, params):
             send({"id": identifier, "method": method, "params": params})

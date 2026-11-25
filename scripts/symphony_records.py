@@ -4,12 +4,29 @@ import json
 import os
 from pathlib import Path
 import stat
+import tempfile
+
+
+def _canonicalize_directory(path):
+    raw = Path(path).expanduser().absolute()
+    if os.path.lexists(raw) and raw.is_symlink():
+        raise ValueError(f"Use a canonical directory without a symlink leaf: {raw}")
+    missing_parts = []
+    cur = raw
+    while not os.path.lexists(cur) and cur != cur.parent:
+        missing_parts.append(cur.name)
+        cur = cur.parent
+    if missing_parts and cur.is_symlink():
+        # Resolve OS/parent symlinks (for example macOS /tmp -> /private/tmp) above missing leaf dirs.
+        resolved = cur.resolve()
+        for part in reversed(missing_parts):
+            resolved = resolved / part
+        return resolved
+    return raw.resolve() if cur == raw else raw
 
 
 def owned_directory(path):
-    path = Path(path).expanduser().absolute()
-    if path.resolve() != path:
-        raise ValueError(f"Use a canonical directory without symbolic links: {path}")
+    path = _canonicalize_directory(path)
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     info = path.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022:
@@ -24,8 +41,12 @@ def private_directory(path):
     return path
 
 
+def runs_directory():
+    return Path(os.environ.get("SYMPHONY_OUT", str(Path.home() / ".symphony/runs"))).expanduser().absolute()
+
+
 def ledger_path():
-    return Path(os.environ.get("SYMPHONY_LEDGER", str(Path.home() / ".symphony/runs/ledger.jsonl"))).expanduser().absolute()
+    return Path(os.environ.get("SYMPHONY_LEDGER", str(runs_directory() / "ledger.jsonl"))).expanduser().absolute()
 
 
 def append_record(row):
@@ -54,6 +75,26 @@ def write_new(path, value):
         stream.write("\n")
 
 
+def write_atomic_json(path, value):
+    target = Path(path)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
+    tmp = Path(tmp_name)
+    try:
+        os.chmod(tmp, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=True, allow_nan=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, target)
+    except Exception:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
 def reject_constant(value):
     raise ValueError(f"Non-JSON numeric constant: {value}")
 
@@ -62,40 +103,15 @@ def decode_json(data):
     return json.loads(data, parse_constant=reject_constant)
 
 
-def inspect_events(path):
-    result = {"thread": None, "terminal": None, "usage": None,
-              "reported_model": None, "reported_effort": None, "event_error": False}
-    with Path(path).open("rb") as stream:
-        for line in stream:
-            if not line.strip():
-                continue
-            try:
-                event = decode_json(line)
-                if not isinstance(event, dict) or not isinstance(event.get("type"), str):
-                    raise ValueError("Invalid event object")
-            except ValueError:
-                result["event_error"] = True
-                continue
-            kind = event["type"]
-            if kind == "thread.started":
-                result["thread"] = event.get("thread_id")
-            if kind == "turn.started":
-                result["terminal"] = None
-            if kind in ("turn.completed", "turn.failed"):
-                result["terminal"] = kind
-                if kind == "turn.failed":
-                    result["event_error"] = True
-                if isinstance(event.get("usage"), dict):
-                    result["usage"] = event["usage"]
-            if kind == "error":
-                result["event_error"] = True
-            if kind in ("thread.started", "turn.started", "turn.completed"):
-                if isinstance(event.get("model"), str):
-                    result["reported_model"] = event["model"]
-                if isinstance(event.get("reasoning_effort"), str):
-                    result["reported_effort"] = event["reasoning_effort"]
-            if kind == "model.rerouted" and isinstance(event.get("to_model"), str):
-                result["reported_model"] = event["to_model"]
+def validate_report(result):
+    """The lane report contract; anything else is treated as no report at all."""
+    if not isinstance(result, dict) or set(result) != {"status", "summary", "files", "evidence", "not_run"}:
+        return None
+    if result["status"] not in ("completed", "partial", "failed") or not isinstance(result["summary"], str) or not result["summary"].strip():
+        return None
+    for key in ("files", "evidence", "not_run"):
+        if not isinstance(result[key], list) or not all(isinstance(item, str) for item in result[key]):
+            return None
     return result
 
 
@@ -103,14 +119,6 @@ def inspect_report(path):
     try:
         if Path(path).stat().st_size > 8 * 1024 * 1024:
             return None
-        result = decode_json(Path(path).read_text(encoding="utf-8"))
-        if not isinstance(result, dict) or set(result) != {"status", "summary", "files", "evidence", "not_run"}:
-            return None
-        if result["status"] not in ("completed", "partial", "failed") or not isinstance(result["summary"], str) or not result["summary"].strip():
-            return None
-        for key in ("files", "evidence", "not_run"):
-            if not isinstance(result[key], list) or not all(isinstance(item, str) for item in result[key]):
-                return None
-        return result
+        return validate_report(decode_json(Path(path).read_text(encoding="utf-8")))
     except (OSError, ValueError):
         return None

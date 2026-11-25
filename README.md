@@ -1,20 +1,16 @@
 # Symphony
 
-Model-agnostic orchestration: **one conductor, live catalog routing, frontier-max
-quality floor, cheaper slices only when a tight spec plus frontier review can hold
-that floor**. Native delegation is preferred; Codex CLI lanes remain available when
-the host permits them.
+Multi-model orchestration for one conductor: **the invoking model conducts, frames specs,
+reviews, and integrates; other seats execute.** Seats are filled at every invocation from
+live discovery against what the host can run today, mapped to **Fast / Standard /
+Frontier** bands, confirmed with the user, and every non-frontier return gets a separate
+current-frontier review before acceptance or landing.
 
-Select models and efforts from **this session's** host catalog — never from names in
-the skill. Map work to Fast / Standard / Frontier bands using live signals; prefer
-the latest listed version of a family when the user did not pin one. A new frontier
-release becomes a candidate when the host lists it; it is not a reason to invoke
-Symphony or to reroute in-flight work. Every Fast, Standard, or unknown-capability
-return receives a current-frontier review before acceptance, at the effort a
-frontier-max solo pass would have used on that slice.
-
-Keep small work solo. Symphony is for independent slices or a cheaper band under a
-frontier spec and review — not model tourism, and not an adversarial plan/diff loop.
+Engines supported on one bench: the host's native delegation tool (such as Claude Code's
+Agent tool with the installed `symphony-*` seat definitions), plus four CLI engines
+driven through one dispatcher — Codex (`codex`), Antigravity (`agy`), Cursor (`agent`),
+and Claude Code (`claude -p`). Model IDs and efforts are discovered live; nothing here
+ranks models, invents IDs, or pins a release.
 
 ## Install
 
@@ -24,54 +20,65 @@ cd symphony
 ./install.sh
 ```
 
-Installation requires a clean committed checkout. It builds a complete content-checked
-package under `~/.symphony/packages/<commit>/symphony` and links it into Codex and Claude
-skills. Existing managed links can be updated; unexpected files or links are refused.
-Replaced links are retained under `~/.symphony/backups`. Nothing enables hooks, changes
-global model configuration or alters authentication. `--codex` and `--claude` select
-one host; no arguments selects both. Codex respects `CODEX_HOME` when set.
+Installation requires a clean committed checkout. It builds a content-checked package
+under `~/.symphony/packages/<commit>/symphony`, links it into Codex (`$CODEX_HOME`,
+default `~/.codex`) and Claude (`$CLAUDE_CONFIG_DIR`, default `~/.claude`) skills, and
+links the four seat definitions into `$CLAUDE_CONFIG_DIR/agents` (`--no-agents` skips
+that). Use `--check` to verify installed symlinks and file digests, or `--uninstall` to
+remove only Symphony-managed links cleanly. Existing managed links are updated; unexpected
+files or links are refused; replaced links are backed up under `~/.symphony/backups`.
+Nothing enables hooks, changes global model settings, or alters authentication.
 
-Invoke **Symphony** in a new host session. Installation does not force an already-
-running session to reload its skill catalog.
+Invoke **Symphony** in a new host session after installing or updating; a running session
+does not reload its skill catalog or agent definitions.
 
-## CLI fallback
+## What an invocation does
 
-Requires Python 3.9+ and an authenticated Codex CLI with `app-server` `model/list`,
-`exec --json`, model/effort overrides and sandbox support. Interfaces were inspected
-against CLI 0.154.0 and current official documentation; runtime validation is deferred.
+1. Intake the request/handoff and re-verify premises against the current workspace.
+2. Stay solo if the task is one bounded edit, discovery fails, or review overhead outweighs delegation.
+3. Discover live capabilities: `python3 -B scripts/symphony-models.py --table`,
+   `scripts/symphony-seat-plan.sh check`, plus any native subagent/model list.
+4. **Confirm seats with the user** — **A**: reuse last confirmed seat plan (when available),
+   **B**: proposal from live discovery mapped to Fast / Standard / Frontier bands,
+   **C**: custom assignment — and save via `scripts/symphony-seat-plan.sh save`.
+5. Decompose into lanes with disjoint writable scopes and written acceptance criteria.
+6. Dispatch natively (`agents/symphony-*.md`) or via `scripts/symphony-dispatch.sh`.
+7. Frontier-review every Fast/Standard/unknown-capability return (`symphony-accept.sh`).
+8. Integrate, verify the whole, report problem-first, and land only with authorization.
+
+See [the skill](skills/symphony/SKILL.md), [live routing](skills/symphony/references/routing.md),
+[seat plans](skills/symphony/references/seat-plans.md), and the [CLI reference](skills/symphony/references/cli.md).
+
+## CLI quick reference
 
 ```sh
-python3 scripts/symphony-models.py
-scripts/symphony-dispatch.sh builder high /absolute/spec.md /absolute/repo lane --model MODEL_ID
-scripts/symphony-dispatch.sh scout ask @/absolute/brief.md /absolute/repo facts --model MODEL_ID --effort auto
-scripts/symphony-status.sh
+python3 -B scripts/symphony-models.py --table
+scripts/symphony-dispatch.sh builder high /abs/spec.md /abs/repo lane --engine <engine> --model <model> --effort <effort>
+scripts/symphony-dispatch.sh builder auto /abs/spec.md /abs/repo lane --seat builder-light
+scripts/symphony-dispatch.sh scout ask @/abs/brief.md /abs/repo facts --seat scout
+scripts/symphony-dispatch.sh resume /abs/attempt/result.json /abs/fix-list.md
+scripts/symphony-status.sh --table
+scripts/symphony-accept.sh <attempt-or-run-id> --acceptance accepted --review completed --note "diff & tests checked"
 ```
 
-`MODEL_ID` is an ID returned by live discovery, not a Symphony alias. Without an explicit
-model or `SYMPHONY_MODEL`, the dispatcher selects the catalog's sole recommended default
-and labels the route provisional. It never falls back from an unavailable explicit
-selection. Native role selection and evidence-led routing remain conductor
-responsibilities; the CLI runner does not pretend to judge model intelligence.
+Requires Python 3.9+ and an authenticated CLI for each engine you route to. Every run
+records requested, resolved, and reported model/effort separately; `completed` is an
+execution state, not acceptance.
 
-See [CLI reference](skills/symphony/references/cli.md) for per-role overrides, dry runs,
-repair attempts, outcome records and limitations. Conductor band mapping lives in
-[routing](skills/symphony/references/routing.md).
+## Discipline and verification
 
-## Discipline without unnecessary overhead
+Scope delegates narrowly, avoid overlapping writes, and load only the relevant
+[Score](score/OPERATING.md) drills. Inspect source-bound evidence; repeat checks when
+source, inputs, or environment change, not by ritual. Only the conductor lands commits,
+pushes, or releases. Run the unit suite after edits:
 
-Keep small work solo. Scope delegates narrowly, avoid overlapping writes, and load only
-relevant [Score](score/OPERATING.md) drills. Inspect source-bound evidence; repeat checks
-when source, inputs or environment change, not merely because another agent ran them.
-Fast, Standard, or unknown-capability returns need a current-frontier reviewer, not
-necessarily another vendor. Inherit the conductor's model only when it already matches
-the slice's band and effort. Only the conductor performs authorized landings and
-external mutations.
+```sh
+python3 -m unittest discover -s tests -v
+```
 
-**Implemented but behaviorally unvalidated.** No mock processes, synthetic catalogs,
-simulated tasks or benchmark sweeps were used for this update. There are no measured
-quality, reliability or token-savings claims. Assess later on
-[real work](skills/symphony/references/real-work-assessment.md); that is not an install,
-merge or usability gate. Future releases need no source update while host discovery and
-invocation interfaces remain compatible; breaking host APIs may need adapter maintenance.
+**Validation status.** On 2026-09-20 each CLI engine completed a read-only lane through the
+dispatcher and Cursor completed one write lane against a scratch repository ([CLI
+reference](skills/symphony/references/cli.md)); ongoing routing quality is evaluated on
+real work per [real-work assessment](skills/symphony/references/real-work-assessment.md).
 
 MIT. Optional Score hooks remain host-specific and opt-in.

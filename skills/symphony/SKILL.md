@@ -38,37 +38,45 @@ work or to invoke this skill.
 
 | Role | Responsibility | Authority |
 |---|---|---|
-| Conductor | Scope, routing, integration, acceptance, user communication | Only already-authorized external actions |
+| Conductor | Scope, routing, seat confirmation, integration, acceptance | Only already-authorized external actions |
 | Builder | Implement a bounded spec and report evidence | Explicit writable scope; no landings |
 | Scout | Retrieve facts, research, inspect sources | Read-only; web only when permitted |
 | Verifier | Check actual artifacts against acceptance criteria | Read-only source; scoped execution when permitted |
 | Reviewer | Fresh-context critique of the design or diff | Read-only; independent of the author |
 
 Small tasks stay solo. Parallelize independent work with disjoint ownership; serialize
-dependencies and heavy shared resources. Prefer native delegation when the host exposes
-suitable model/effort, permissions, ownership, and completion controls. Use the CLI
-fallback only when allowed and useful. **If the host or user forbids agents, stay solo:
-a CLI process is not a workaround.** Do not create user-owned tasks for internal
-delegation without a request. Symphony is authorization to select models/efforts for
-internal lanes; still honor explicit user pins.
+dependencies and heavy shared resources. Prefer native delegation (`agents/symphony-*.md`
+when installed) if the host exposes suitable model/effort, permissions, ownership, and
+completion controls. Use the CLI dispatcher (`scripts/symphony-dispatch.sh`) across
+Codex, `agy`, Cursor, or Claude Code when allowed and useful. **If the host or user
+forbids agents, stay solo: a CLI process is not a workaround.** Do not create user-owned
+tasks for internal delegation without a request. Symphony is authorization to select
+models/efforts for internal lanes; still honor explicit user pins.
 
-## Discover, then classify — never reuse remembered names
+## Discover, confirm seats, then classify — never reuse remembered names
 
 1. Read the **live** catalog this session. Native hosts: the current subagent/model
-   list on the delegation tool (IDs, effort/thinking suffixes, descriptions). Codex CLI:
-   `scripts/symphony-models.py` (`model/list` only). Do not read private caches, guess
-   successor IDs, or copy names out of this skill.
-2. Honor explicit user/env selections if they are in the catalog. Otherwise reuse an
+   list on the delegation tool (IDs, effort/thinking suffixes, descriptions). CLI engines:
+   run `python3 -B scripts/symphony-models.py --table` and
+   `scripts/symphony-seat-plan.sh check`. Do not read private caches, guess successor IDs,
+   or copy names out of this skill.
+2. **Confirm seat assignments with the user** on each invocation when multiple bands or
+   engines are in play (see [seat plans](references/seat-plans.md)):
+   - **A**: reuse the last confirmed seat plan (only when `symphony-seat-plan.sh check` passes);
+   - **B**: propose seats from live discovery mapped to Fast / Standard / Frontier bands;
+   - **C**: custom assignment.
+   Save confirmed non-trivial plans with `scripts/symphony-seat-plan.sh save`.
+3. Honor explicit user/env selections if they are in the catalog. Otherwise reuse an
    accepted route for this task class, or choose a **provisional** route. Availability
    is not evidence of quality, cost, or fit.
-3. Prefer the **latest listed version of a family** when the user did not pin a version.
+4. Prefer the **latest listed version of a family** when the user did not pin a version.
    Map each listed option to a **band** from host signals only (see
    [routing](references/routing.md)). Do not keep a named ranking or nickname list in this file.
-4. Match **effort** to uncertainty and blast radius, using the host's actual controls
+5. Match **effort** to uncertainty and blast radius, using the host's actual controls
    (separate effort field, or the effort/thinking suffix on a slug). Lowest effort the
    evidence supports. A hard kernel goes to frontier immediately — do not burn cheap
    retries to satisfy an escalation ritual. More reasoning is not automatically better.
-5. Record work class, band, exact ID, effort, and rationale. IDs and efforts are
+6. Record work class, band, exact ID, effort, and rationale. IDs and efforts are
    runtime data.
 
 Work → band → starting effort (pick the cheapest catalog option that can fill the band):
@@ -105,9 +113,10 @@ telemetry is unknown, not zero. Never skip review to "save" tokens.
    for that slice (medium for narrow deterministic work, high for behavioral/research,
    max for architecture, security, or interacting constraints). Review the artifact
    against requirements and evidence, not the author's story.
-4. **Escalate on capability misses, diagnose the rest.** One precise repair, then
-   conductor takeover or a stronger band. Auth, permissions, missing tools, and false
-   premises need diagnosis, not a more expensive model.
+4. **Escalate on capability misses, diagnose the rest.** One precise repair
+   (`scripts/symphony-dispatch.sh resume` for CLI lanes), then conductor takeover or a
+   stronger band. Auth, permissions, missing tools, and false premises need diagnosis,
+   not a more expensive model.
 
 If a cheap slice plus review/repair would cost more than starting on frontier, start
 on frontier. If review cannot run and the conductor cannot fill that role, report
@@ -143,8 +152,8 @@ bounded waits; low CPU alone does not prove a hung process.
 Read the report, source diff, and scope status. Inspect execution records bound to
 exact source, inputs, command, and environment. Reuse complete unchanged evidence;
 rerun when those change or evidence is missing or unreliable. An author-pasted
-summary alone is insufficient. Keep frontier review and final integration checks
-where warranted, without duplicating every test by ritual.
+summary alone is insufficient. Record conductor review and acceptance explicitly
+(`scripts/symphony-accept.sh <attempt-or-run-id> --acceptance accepted --review completed`).
 
 Conductor landings still need authorization. Use problem-first commit/PR descriptions
 and truthful model/harness attribution; label an unreported identity instead of
@@ -163,7 +172,8 @@ above this file). Installation places a complete package beside SKILL.md, so the
 paths resolve from the installed skill root.
 
 - Band mapping, inherit rules, and dispatch records: [routing](references/routing.md).
-- CLI discovery, dispatch, repair, and status: [CLI reference](references/cli.md).
+- Seat plan check/save workflow: [seat plans](references/seat-plans.md).
+- CLI discovery, dispatch, repair, acceptance, and status: [CLI reference](references/cli.md).
 - Serious multi-step work: read `score/OPERATING.md`; load individual `score/drills/`
   only when relevant. Do not copy the entire Playbook into every lane.
 - Later assessment on real work: [real-work assessment](references/real-work-assessment.md).
