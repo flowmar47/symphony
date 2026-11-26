@@ -1,5 +1,7 @@
 # Symphony
 
+[![CI](https://github.com/flowmar47/symphony/actions/workflows/test.yml/badge.svg)](https://github.com/flowmar47/symphony/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Multi-model orchestration for one conductor: **the invoking model conducts, frames specs,
 reviews, and integrates; other seats execute.** Seats are filled at every invocation from
 live discovery against what the host can run today, mapped to **Fast / Standard /
